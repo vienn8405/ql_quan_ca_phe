@@ -1,0 +1,61 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quản lý đơn hàng</title>
+</head>
+<body>
+    <h1>Danh sách đơn hàng</h1>
+
+    <a href="/admin/orders/add/">➕ Tạo đơn hàng</a>
+    <br><br>
+
+    <table border="1">
+        <tr>
+            <th>Sản phẩm</th>
+            <th>Số lượng</th>
+            <th>Thời gian</th>
+            <th>Giá</th>
+            <th>Tổng tiền</th>
+            <th>Hành động</th>
+        </tr>
+        {% for order in orders %}
+<tr>
+    <td>
+        {% for item in order.orderitem_set.all %}
+            {{ item.product.name }}<br>
+        {% endfor %}
+    </td>
+
+    <td>
+        {% for item in order.orderitem_set.all %}
+            {{ item.quantity }}<br>
+        {% endfor %}
+    </td>
+
+    <td>{{ order.created_at|date:"d/m/Y H:i:s" }}</td>
+
+    <td>
+        {% for item in order.orderitem_set.all %}
+            {{ item.price }}<br>
+        {% endfor %}
+    </td>
+
+    <td>{{ order.total_price }}</td>
+
+    <td>
+        <a href="{% url 'order_edit' order.id %}">✏️ Sửa</a> |
+        <a href="{% url 'order_delete' order.id %}">❌ Xóa</a>
+    </td>
+</tr>
+{% endfor %}
+
+    </table>
+
+    <br>
+    <a href="/admin/">⬅ Quay lại </a>
+</body>
+</html>
+{% endblock %}

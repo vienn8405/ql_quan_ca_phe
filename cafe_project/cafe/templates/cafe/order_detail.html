@@ -1,0 +1,31 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<h1>📦 Đơn hàng của bạn</h1>
+
+<p><b>Mã đơn:</b> {{ order.id }}</p>
+<p><b>Ngày đặt:</b> {{ order.created_at }}</p>
+<p><b>Hình thức thanh toán:</b> {{ order.get_payment_method_display }}</p>
+
+<table border="1" cellpadding="5">
+    <tr>
+        <th>Sản phẩm</th>
+        <th>Giá</th>
+        <th>Số lượng</th>
+        <th>Thành tiền</th>
+    </tr>
+
+    {% for item in items %}
+    <tr>
+        <td>{{ item.product.name }}</td>
+        <td>{{ item.price }}đ</td>
+        <td>{{ item.quantity }}</td>
+        <td>{{ item.price|add:0|floatformat:0 }} x {{ item.quantity }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h3>💰 Tổng tiền: {{ order.total_price }}đ</h3>
+
+<a href="{% url 'user_home' %}">⬅ Quay về trang chính</a>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends 'cafe/base.html' %}
+{% block content %}
+<h2>Thêm chi nhánh mới</h2>
+
+{% if error %}
+  <p style="color:red;">{{ error }}</p>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+  <p>
+    <label>Tên quán</label><br>
+    <input name="name" value="{{ name|default:'' }}" required>
+  </p>
+
+  <p>
+    <label>Địa chỉ</label><br>
+    <input name="address" value="{{ address|default:'' }}">
+  </p>
+
+  <p>
+    <label>Latitude (vĩ độ)</label><br>
+    <input name="lat" value="{{ lat|default:'' }}" placeholder="vd: 10.71126" required>
+  </p>
+
+  <p>
+    <label>Longitude (kinh độ)</label><br>
+    <input name="lng" value="{{ lng|default:'' }}" placeholder="vd: 106.69358" required>
+  </p>
+
+  <button type="submit">Lưu</button>
+  <a href="{% url 'branch_list' %}">Hủy</a>
+</form>
+
+<p style="color:#6a5a50; font-size:13px;">
+  
+</p>
+{% endblock %}

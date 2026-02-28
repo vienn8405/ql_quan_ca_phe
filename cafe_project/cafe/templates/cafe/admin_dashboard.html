@@ -1,0 +1,23 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+</head>
+<body>
+    <h1>Trang quản trị</h1>
+
+    <ul>
+        <li><a href="/admin/products/">Quản lý sản phẩm</a></li>
+        <li><a href="/admin/orders/">Quản lý đơn hàng</a></li>
+        <li><a href="/admin/categories/">Quản lý loại</a></li>
+        <li><a href="/admin/inventory/">Quản lý kho</a></li>
+        <li><a href="/admin/employees/">Quản lý nhân viên</a></li>
+        <li><a href="/admin/branches/">Quản lý chi nhánh (quán cà phê)</a></li>
+        <li><a href="/logout/">Đăng xuất</a></li>
+    </ul>
+</body>
+</html>
+{% endblock %}

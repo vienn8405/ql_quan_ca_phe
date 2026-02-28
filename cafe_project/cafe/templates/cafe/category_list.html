@@ -1,0 +1,28 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<h1>Loại sản phẩm</h1>
+
+<a href="{% url 'category_add' %}">➕ Thêm loại</a>
+<br><br>
+
+<table border="1">
+  <tr>
+    <th>Tên loại</th>
+    <th>Hành động</th>
+  </tr>
+
+  {% for c in categories %}
+  <tr>
+    <td>{{ c.name }}</td>
+    <td>
+      <a href="{% url 'category_edit' c.id %}">✏️ Sửa</a>
+      <a href="{% url 'category_delete' c.id %}"
+         onclick="return confirm('Xoá loại này?');">❌ Xoá</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+<a href="{% url 'admin_dashboard' %}">⬅ Quay lại</a>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<h1>Sửa nhân viên</h1>
+
+<form method="post">
+    {% csrf_token %}
+    <input name="name" value="{{ employee.name }}"><br><br>
+    <input name="role" value="{{ employee.role }}"><br><br>
+    <input name="phone" value="{{ employee.phone }}"><br><br>
+    <input name="salary" value="{{ employee.salary }}"><br><br>
+    <button type="submit">Cập nhật</button>
+</form>
+
+<a href="/admin/employees/">⬅ Quay lại</a>
+{% endblock %}

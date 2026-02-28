@@ -1,0 +1,36 @@
+{% extends 'cafe/base.html' %}
+
+{% block title %}Trang chủ {% endblock %}
+
+{% block content %}
+<h1>☕ Chào mừng đến Quán Cà Phê</h1>
+
+<p>
+  Chào bạn 👋  
+  Hãy xem menu và chọn món yêu thích của bạn nhé!
+</p>
+
+<hr>
+
+<h2>📋 Danh mục đồ uống</h2>
+<ul>
+  {% for c in categories %}
+    <li>{{ c.name }}</li>
+  {% endfor %}
+</ul>
+
+<hr>
+
+<h2>👉 Bắt đầu đặt món</h2>
+<ul>
+  <li>📖 <a href="{% url 'user_menu' %}">Xem menu</a></li>
+  <li>🛒 <a href="{% url 'cart' %}">Xem giỏ hàng</a></li>
+  
+</ul>
+
+<hr>
+
+<p>
+  🔐 <a href="{% url 'login' %}">Đăng nhập (dành cho admin)</a>
+</p>
+{% endblock %}

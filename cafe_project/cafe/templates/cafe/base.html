@@ -1,0 +1,56 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Quán Cà Phê{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'cafe/style.css' %}">
+</head>
+<body>
+  <div class="app">
+    <!-- Cột trái: "coffee sleeve" -->
+    <aside class="sleeve">
+      <div class="sleeve-top">
+        <div class="cup">☕</div>
+        <div class="brand">
+          <div class="brand-name">Quán Cà Phê</div>
+          <div class="brand-sub">order · quản lý · GIS</div>
+        </div>
+      </div>
+
+      <nav class="sleeve-nav">
+        <a class="navlink" href="{% url 'user_home' %}">🏠 <span>Trang chủ</span></a>
+        <a class="navlink" href="{% url 'user_menu' %}">📋 <span>Menu</span></a>
+        <a class="navlink" href="{% url 'cart' %}">🛒 <span>Giỏ hàng</span></a>
+        <a class="navlink" href="{% url 'login' %}">🔐 <span>Đăng nhập</span></a>
+        <a class="navlink" href="{% url 'map' %}">🗺️ <span>Bản đồ</span></a>
+      </nav>
+
+      <div class="sleeve-foot">
+        <div class="tag">CÀ PHÊ & BẢN ĐỒ</div>
+        <div class="mini">Ứng dụng quản lý chi nhánh bằng GIS</div>
+      </div>
+    </aside>
+
+    <!-- Cột phải: giấy nội dung -->
+    <main class="paper">
+      <div class="paper-edge"></div>
+
+      <!-- HERO: canh giữa tự động -->
+       {% block hero %}
+      <section class="hero">
+        <h2 class="hero-title">Chào mừng đến Quán Cà Phê</h2>
+        <p class="hero-sub">Chọn menu, quản lý giỏ hàng, hoặc mở bản đồ để xem chi nhánh.</p>
+      </section>
+      {% endblock %}
+
+      <section class="paper-body">
+        {% block content %}{% endblock %}
+      </section>
+      
+    </main>
+  </div>
+</body>
+
+
+</html>

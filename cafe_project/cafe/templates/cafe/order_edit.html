@@ -1,0 +1,37 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sửa đơn hàng</title>
+</head>
+<body>
+    <h1>Sửa đơn hàng</h1>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <label>Sản phẩm:</label><br>
+        <select name="product">
+            {% for p in products %}
+                <option value="{{ p.id }}"
+                    {% if p.id == order.product.id %}selected{% endif %}>
+                    {{ p.name }}
+                </option>
+            {% endfor %}
+        </select>
+        <br><br>
+
+        <label>Số lượng:</label><br>
+        <input type="number" name="quantity" value="{{ order.quantity }}">
+        <br><br>
+
+        <button type="submit">Cập nhật đơn hàng</button>
+    </form>
+
+    <br>
+    <a href="/admin/orders/">⬅ Quay lại</a>
+</body>
+</html>
+{% endblock %}

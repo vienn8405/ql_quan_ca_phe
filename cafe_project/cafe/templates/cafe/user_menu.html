@@ -1,0 +1,57 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Menu{% endblock %}
+{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Menu</title>
+</head>
+<body>
+    <h1>Menu quán cà phê</h1>
+
+    {% if products %}
+    <ul style="list-style:none;padding:0;">
+        {% for p in products %}
+            <li style="display:flex;gap:12px;align-items:center;
+                       padding:12px;border:1px solid #ddd;
+                       border-radius:12px;margin-bottom:12px;">
+
+                {% if p.image %}
+                    <img src="{{ p.image.url }}"
+                         style="width:80px;height:80px;
+                                object-fit:cover;border-radius:12px;">
+                {% else %}
+                    <div style="width:80px;height:80px;
+                                display:flex;align-items:center;
+                                justify-content:center;
+                                background:#eee;border-radius:12px;">
+                        ☕
+                    </div>
+                {% endif %}
+
+                <div style="flex:1;">
+                    <div style="font-weight:bold;">
+                        {{ p.name }}
+                    </div>
+                    <div>
+                        {{ p.price }}đ
+                    </div>
+                    <a href="{% url 'cart_add' p.id %}">
+                        ➕ Thêm vào giỏ
+                    </a>
+                </div>
+
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>Chưa có sản phẩm</p>
+{% endif %}
+
+    <a href="{% url 'cart' %}">🛒 Xem giỏ hàng</a>
+    <a href="{% url 'user_home' %}">← Quay lại trang chính</a>
+
+    
+</body>
+</html>
+{% endblock %}

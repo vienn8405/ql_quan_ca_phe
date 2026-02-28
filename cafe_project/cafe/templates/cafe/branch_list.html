@@ -1,0 +1,33 @@
+{% extends 'cafe/base.html' %}
+{% block content %}
+<h2>Quản lý chi nhánh</h2>
+
+<p><a href="{% url 'branch_add' %}">➕ Thêm chi nhánh mới</a></p>
+
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Tên</th>
+    <th>Địa chỉ</th>
+    <th>Tọa độ</th>
+    <th>Hành động</th>
+  </tr>
+  {% for b in branches %}
+  <tr>
+    <td>{{ b.id }}</td>
+    <td>{{ b.name }}</td>
+    <td>{{ b.address }}</td>
+    <td>
+      {% if b.location %}
+        {{ b.location.y }}, {{ b.location.x }}
+      {% endif %}
+    </td>
+    <td>
+      <a href="{% url 'branch_edit' b.id %}">Sửa</a> |
+      <a href="{% url 'branch_delete' b.id %}" onclick="return confirm('Xóa chi nhánh này?')">Xóa</a>
+    </td>
+  </tr>
+  {% endfor %}
+  <a href="/admin/">⬅ Quay lại </a>
+</table>
+{% endblock %}

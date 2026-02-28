@@ -1,0 +1,36 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sửa sản phẩm</title>
+</head>
+<body>
+    <h1>Sửa sản phẩm</h1>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="text" name="name" value="{{ product.name }}"><br><br>
+        <select name="category">
+        {% for c in categories %}
+            <option value="{{ c.id }}"
+                {% if c.id == product.category.id %}selected{% endif %}>
+                {{ c.name }}
+            </option>
+        {% endfor %}
+         <input type="file" name="image" accept="image/*"><br><br>
+
+         {% if product.image %}
+         <img src="{{ product.image.url }}" style="max-width:140px;border-radius:12px;">
+         {% endif %}
+    </select><br><br>
+        <input type="number" name="price" value="{{ product.price }}"><br><br>
+        <button type="submit">Cập nhật</button>
+    </form>
+
+    <br>
+    <a href="/admin/products/">⬅ Quay lại</a>
+</body>
+</html>
+{% endblock %}

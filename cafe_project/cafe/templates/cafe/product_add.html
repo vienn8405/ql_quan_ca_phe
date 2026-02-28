@@ -1,0 +1,29 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Thêm sản phẩm</title>
+</head>
+<body>
+    <h1>Thêm sản phẩm</h1>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="text" name="name" placeholder="Tên món"><br><br>
+        <select name="category">
+         {% for c in categories %}
+            <option value="{{ c.id }}">{{ c.name }}</option>
+         {% endfor %}
+        </select><br><br>
+         <input type="file" name="image" accept="image/*"><br><br>
+        <input type="number" name="price" placeholder="Giá"><br><br>
+        <button type="submit">Lưu</button>
+    </form>
+
+    <br>
+    <a href="/admin/products/">⬅ Quay lại</a>
+</body>
+</html>
+{% endblock %}

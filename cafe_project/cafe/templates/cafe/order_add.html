@@ -1,0 +1,32 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tạo đơn hàng</title>
+</head>
+<body>
+    <h1>Tạo đơn hàng</h1>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <select name="product">
+            {% for p in products %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
+        </select>
+        <br><br>
+
+        <input type="number" name="quantity" placeholder="Số lượng">
+        <br><br>
+
+        <button type="submit">Lưu đơn hàng</button>
+    </form>
+
+    <br>
+    <a href="/admin/orders/">⬅ Quay lại</a>
+</body>
+</html>
+{% endblock %}

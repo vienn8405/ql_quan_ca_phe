@@ -1,0 +1,58 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<h1>🛒 Giỏ hàng</h1>
+
+{% if cart %}
+<table border="1" cellpadding="6">
+    <tr>
+        <th>Sản phẩm</th>
+        <th>Giá</th>
+        <th>Số lượng</th>
+        <th>Thành tiền</th>
+        <th>Hành động</th>
+    </tr>
+
+    {% for pid, item in cart.items %}
+    <tr>
+        <td>{{ item.name }}</td>
+        <td>{{ item.price }}</td>
+        <td>
+            <a href="{% url 'cart_update' pid %}?action=decrease">➖</a>
+            {{ item.quantity }}
+            <a href="{% url 'cart_update' pid %}?action=increase">➕</a>
+        </td>
+        <td>{{ item.subtotal }}đ</td>
+        <td>
+            <a href="{% url 'cart_remove' pid %}">❌ Xóa</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h3>Tổng tiền: {{ total }}đ</h3>
+<form method="post" action="{% url 'user_order_create' %}">
+    {% csrf_token %}
+
+    <h3>Chọn hình thức thanh toán:</h3>
+    <label>
+        <input type="radio" name="payment_method" value="cash" checked>
+        💵 Tiền mặt
+    </label><br>
+
+    <label>
+        <input type="radio" name="payment_method" value="bank">
+        💳 Chuyển khoản
+    </label><br><br>
+
+    <button type="submit">✅ Đặt hàng</button>
+</form>
+
+{% else %}
+<p>Giỏ hàng đang trống</p>
+{% endif %}
+
+<a href="{% url 'user_order_detail' %}">📦 Xem đơn hàng</a>
+
+<a href="{% url 'user_menu' %}">⬅ Quay lại menu</a>
+{% endblock %}

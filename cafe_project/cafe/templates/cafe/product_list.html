@@ -1,0 +1,39 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quản lý sản phẩm</title>
+</head>
+<body>
+    <h1>Danh sách sản phẩm</h1>
+
+    <a href="/admin/products/add/">➕ Thêm sản phẩm</a> 
+    <br><br>
+
+    <table border="1">
+        <tr>
+            <th>Tên món</th>
+            <th>Loại</th>
+            <th>Giá tiền</th>
+            <th>Hành động</th>
+        </tr>
+        {% for p in products %}
+        <tr>
+            <td>{{ p.name }}</td>
+            <td>{{p.category.name}}</td>
+            <td>{{ p.price }}</td>
+            <td>
+             <a href="/admin/products/edit/{{ p.id }}/">✏️ Sửa</a> |
+             <a href="/admin/products/delete/{{ p.id }}/">❌ Xóa</a>
+             </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <br>
+    <a href="/admin/">⬅ Quay lại </a>
+</body>
+</html>
+{% endblock %}

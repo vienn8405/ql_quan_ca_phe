@@ -1,0 +1,28 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<h1>Quản lý kho</h1>
+
+<table border="1">
+    <tr>
+        <th>Sản phẩm</th>
+        <th>Loại</th>
+        <th>Số lượng tồn</th>
+        <th>Cập nhật</th>
+    </tr>
+
+    {% for i in inventories %}
+    <tr>
+        <td>{{ i.product.name }}</td>
+        <td>{{ i.product.category.name }}</td>
+        <td>{{ i.quantity }}</td>
+        <td>
+            <a href="/admin/inventory/edit/{{ i.id }}/">✏️ Sửa</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+<br>
+<a href="/admin/">← Dashboard</a>
+{% endblock %}

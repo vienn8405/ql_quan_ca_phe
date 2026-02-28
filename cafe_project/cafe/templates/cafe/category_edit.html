@@ -1,0 +1,14 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<h1>Sửa loại</h1>
+
+<form method="post">
+  {% csrf_token %}
+  <input type="text" name="name" value="{{ category.name }}" required>
+  <br><br>
+  <button type="submit">Lưu</button>
+</form>
+
+<a href="{% url 'category_list' %}">⬅ Quay lại</a>
+{% endblock %}

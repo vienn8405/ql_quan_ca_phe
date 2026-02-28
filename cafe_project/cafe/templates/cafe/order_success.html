@@ -1,0 +1,19 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<h1>🎉 Đặt hàng thành công!</h1>
+
+<p>Mã đơn hàng: <strong>#{{ order.id }}</strong></p>
+<p>Tổng tiền: <strong>{{ order.total_price }} đ</strong></p>
+<p>Hình thức thanh toán:
+    <strong>
+        {% if order.payment_method == 'cash' %}
+            💵 Tiền mặt
+        {% else %}
+            💳 Chuyển khoản
+        {% endif %}
+    </strong>
+</p>
+<a href="{% url 'user_order_detail' %}">📦 Xem đơn hàng</a>
+<a href="{% url 'user_menu' %}">⬅ Quay lại menu</a>
+{% endblock %}

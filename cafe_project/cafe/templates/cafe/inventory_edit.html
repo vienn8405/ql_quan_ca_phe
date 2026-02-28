@@ -1,0 +1,16 @@
+{% extends 'cafe/base.html' %}
+
+{% block content %}
+<h1>Cập nhật kho</h1>
+
+<form method="post">
+    {% csrf_token %}
+    <p>Sản phẩm: <b>{{ inventory.product.name }}</b></p>
+    <input type="number" name="quantity" value="{{ inventory.quantity }}">
+    <br><br>
+    <button type="submit">Cập nhật</button>
+</form>
+
+<br>
+<a href="/admin/inventory/">← Quay lại</a>
+{% endblock %}

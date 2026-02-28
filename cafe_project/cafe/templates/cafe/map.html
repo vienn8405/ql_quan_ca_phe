@@ -1,0 +1,658 @@
+{% extends 'cafe/base.html' %}
+{% block hero %}{% endblock %}
+{% block content %}
+<div class="wrap map-wide">
+  <div class="sidebar" id="sidebar"> 
+
+  <div class="sideHead"> 
+    <div class="title">☕ Danh sách quán</div>
+    <button id="btnToggleList" class="toggleBtn" title="Thu gọn / Mở rộng">⟷</button>
+  </div>
+
+  <div class="sideBody" id="sideBody"> 
+
+    <div class="muted">Bấm vào quán để xem thông tin.</div>
+
+    <input id="search" class="search" placeholder="Tìm theo tên / địa chỉ..." />
+
+    <div class="controls">
+      <select id="radiusPreset">
+        <option value="0.5">0.5 km</option>
+        <option value="1" selected>1 km</option>
+        <option value="2">2 km</option>
+        <option value="5">5 km</option>
+      </select>
+
+      <div class="radiusBox">
+        <input id="radiusKm" type="number" min="0.1" step="0.1" value="1">
+        <span class="unit">km</span>
+      </div>
+
+      <button id="btnNearMe">📍 Gần tôi</button>
+    </div>
+      <div style="margin: 10px 0;">
+       <label style="display:flex; gap:8px; align-items:center; cursor:pointer;">
+        <input type="checkbox" id="chkCluster" checked>
+        <span> Phân cụm quán</span>
+       </label>
+      </div>
+
+      <div style="margin: 6px 0;">
+       <label style="display:flex; gap:8px; align-items:center; cursor:pointer;">
+        <input type="checkbox" id="chkHeatmap" >
+        <span> mật độ</span>
+       </label>
+      </div>
+  
+
+  <!-- tuyến đường UI -->
+  <div class="routeBox">
+   <div class="routeTitle">🧭 Đường đi tới quán</div>
+
+   <button id="btnRouteMyLoc" type="button" class="routeBtn">
+    Đi từ vị trí của tôi
+   </button>
+
+   <div class="routeRow">
+    <input id="startInput" class="routeInput" type="text"
+           placeholder="Nhập vị trí hiện tại ">
+    <button id="btnRouteFromInput" type="button" class="routeBtn">
+      Đi từ vị trí nhập
+    </button>
+   </div>
+
+   <button id="btnClearRoute" type="button" class="routeBtn routeBtnSecondary">
+    Xóa đường đi
+   </button>
+
+
+   <div id="routeHint" class="routeHint">
+    Tip: Click vào marker quán để chọn đích.
+   </div> 
+</div>
+<!--- -->
+
+    <div id="list"></div>
+
+  </div> <!-- /sideBody -->
+
+</div>
+
+  <div id="map" class="map-canvas"></div>
+</div>
+
+<style>
+  .routeBox{ margin-top:12px; padding:10px; border:1px solid #e6e6e6; border-radius:10px; background:#fff; }
+  .routeTitle{ font-weight:700; margin-bottom:8px; }
+  .routeRow{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .routeInput{ flex:1; min-width:220px; padding:8px 10px; border:1px solid #ddd; border-radius:8px; }
+  .routeBtn{ padding:8px 10px; border:none; border-radius:8px; cursor:pointer; }
+  .routeBtnSecondary{ background:#f2f2f2; }
+  .routeHint{ margin-top:8px; font-size:13px; opacity:.8; }
+</style>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Leaflet MarkerCluster(phân cụm) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<!-- Leaflet Routing Machine (tuyến đường) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css">
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+<!-- Leaflet Heat (mật độ)-->
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+
+<script>
+  const map = L.map("map").setView([10.7565, 106.6667], 13);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap"
+  }).addTo(map);
+
+ 
+
+  const listEl = document.getElementById("list");
+  const searchEl = document.getElementById("search");
+  const radiusPresetEl = document.getElementById("radiusPreset");
+  const radiusKmEl = document.getElementById("radiusKm");
+  const btnNearMe = document.getElementById("btnNearMe");
+  const btnRouteMyLoc = document.getElementById("btnRouteMyLoc");
+  const btnRouteFromInput = document.getElementById("btnRouteFromInput");
+  const startInputEl = document.getElementById("startInput");
+
+  const markerById = new Map();
+  let allFeatures = [];
+  let userMarker = null;
+  let nearLayer = null;
+  let currentUserLatLng = null; // [lat, lng]
+  let selectedDest = null; // Tool 3 dùng: { lat, lng, name, address }
+   
+
+ 
+
+
+  // Khi chọn preset (km) -> đổ vào ô nhập km
+radiusPresetEl.addEventListener("change", () => {
+  radiusKmEl.value = radiusPresetEl.value;
+});
+
+// Lấy bán kính (m) từ ô nhập km
+function getRadiusMeters() {
+  const km = parseFloat(radiusKmEl.value);
+  if (Number.isNaN(km) || km <= 0) return 1000; // fallback 1km
+  return Math.round(km * 1000);
+}
+
+  function renderList(features) {
+    listEl.innerHTML = "";
+    if (features.length === 0) {
+      listEl.innerHTML = `<div class="muted">Không có quán phù hợp.</div>`;
+      return;
+    }
+
+    features.forEach((f) => {
+      const p = f.properties || {};
+      const id = p.id;
+      const name = p.name || "Không tên";
+      const address = p.address || "";
+
+      const div = document.createElement("div");
+      div.className = "item";
+      div.innerHTML = `<div class="name">${name}</div><div class="addr">${address}</div>`;
+
+      div.addEventListener("click", async () => {
+       const marker = markerById.get(id);
+       if (!marker) return;
+
+      const latlng = marker.getLatLng();
+      map.setView(latlng, 17, { animate: true });
+
+        //  Tool 3: set đích khi click danh sách
+      selectedDest = { lat: latlng.lat, lng: latlng.lng, name, address };
+      const hint = document.getElementById("routeHint");
+      if (hint) hint.innerText = `Đã chọn đích: ${name}. Bấm 1 trong 2 nút để vẽ đường đi.`;
+
+      try {
+       const [ulat, ulng] = await ensureUserLocation();
+       const d = map.distance([ulat, ulng], [latlng.lat, latlng.lng]);
+       marker.setPopupContent(popupHtml(name, address, d));
+      } catch (e) {
+        marker.setPopupContent(popupHtml(name, address, null));
+      }
+
+  marker.openPopup();
+});
+
+      listEl.appendChild(div);
+    });
+  }
+
+  function applySearch() {
+    const q = (searchEl.value || "").trim().toLowerCase();
+    if (!q) return renderList(allFeatures);
+
+    const filtered = allFeatures.filter((f) => {
+      const p = f.properties || {};
+      return (p.name || "").toLowerCase().includes(q) || (p.address || "").toLowerCase().includes(q);
+    });
+
+    renderList(filtered);
+  }
+
+  // Tool 1: load quán từ backend
+  async function loadBranches() {
+    const res = await fetch("/api/branches.geojson");
+    const data = await res.json();
+
+    data.features.forEach((f) => {
+      const featureId = f.id ?? f.properties?.id;
+      f.properties = f.properties || {};
+      f.properties.id = featureId;
+    });
+
+    // clear marker cũ
+    markerById.clear();
+    tool4_clear();
+
+    // set data mới
+    allFeatures = data.features;
+    renderList(allFeatures);
+    tool5_setData(allFeatures);// cập nhật heatmap theo dữ liệu mới
+
+
+
+    const layer = L.geoJSON(data, {
+      pointToLayer: (feature, latlng) => {
+        const p = feature.properties || {};
+        const id = p.id;
+
+        const marker = L.marker(latlng);
+
+       // popup mặc định (chưa có distance)
+       marker.bindPopup(popupHtml(p.name || "Không tên", p.address || "", null));
+
+      // Khi click marker: nếu có vị trí user thì tính khoảng cách và update popup
+      marker.on("click", async () => {
+       //  set đích route
+       selectedDest = {
+        lat: latlng.lat,
+        lng: latlng.lng,
+        name: p.name || "Không tên",
+        address: p.address || ""
+       };
+       const hint = document.getElementById("routeHint");
+       if (hint) hint.innerText = `Đã chọn đích: ${selectedDest.name}. Chọn cách bắt đầu (vị trí của tôi / nhập vị trí).`;
+       
+        try {
+        const [ulat, ulng] = await ensureUserLocation();
+        const d = map.distance([ulat, ulng], [latlng.lat, latlng.lng]); // meters
+        marker.setPopupContent(popupHtml(p.name || "Không tên", p.address || "", d));
+      } catch (e) {
+        // user từ chối GPS -> popup vẫn bình thường
+        marker.setPopupContent(popupHtml(p.name || "Không tên", p.address || "", null));
+      }
+});
+
+markerById.set(id, marker);
+tool4_addMarker(marker); // tool4 quản lý thêm maker lên map
+return marker;
+      }
+    });
+
+    if (layer.getLayers().length > 0) {
+      map.fitBounds(layer.getBounds(), { padding: [20, 20] });
+    }
+  }
+
+  // Tool 2: gần tôi
+  function locateMe() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject("Trình duyệt không hỗ trợ GPS");
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (err) => reject(err),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+  }
+
+  // Đảm bảo đã có vị trí user (dùng lại nếu đã có)
+async function ensureUserLocation() {
+  if (currentUserLatLng) return currentUserLatLng;
+
+  const { lat, lng } = await locateMe();
+  currentUserLatLng = [lat, lng];
+  return currentUserLatLng;
+}
+// hàm khoảng cách 
+function formatDistance(distanceM) {
+  if (typeof distanceM !== "number") return "";
+  if (distanceM < 1000) return `${Math.round(distanceM)} m`;
+  return `${(distanceM / 1000).toFixed(2)} km`;
+}
+
+function popupHtml(name, address, distanceM) {
+  let html = `<b>${name}</b><br>${address || ""}`;
+  if (typeof distanceM === "number") {
+    html += `<br><b>Khoảng cách: ${formatDistance(distanceM)}</b>`;
+  }
+  return html;
+}
+
+  async function fetchNearMe(lat, lng, radiusM) {
+    const res = await fetch(`/api/near-me/?lat=${lat}&lng=${lng}&radius=${radiusM}`);
+    const data = await res.json();
+    if (!res.ok) throw (data?.error || "Lỗi API near-me");
+    return data;
+  }
+
+  async function nearMe() {
+    try {
+      const { lat, lng } = await locateMe();
+      currentUserLatLng = [lat, lng];
+      const radiusM = getRadiusMeters();
+
+      if (userMarker) map.removeLayer(userMarker);
+      userMarker = L.marker([lat, lng]).addTo(map).bindPopup("📍 Vị trí của bạn").openPopup();
+      map.setView([lat, lng], 15);
+
+      if (window.searchCircle) map.removeLayer(window.searchCircle);
+      window.searchCircle = L.circle([lat, lng], { radius: radiusM, fillOpacity: 0.1 }).addTo(map);
+
+      if (nearLayer) map.removeLayer(nearLayer);
+      const cafes = await fetchNearMe(lat, lng, radiusM);
+
+      nearLayer = L.layerGroup();
+      cafes.forEach((c) => {
+        nearLayer.addLayer(
+          L.marker([c.lat, c.lng]).bindPopup(`<b>${c.name}</b><br>${c.address}<br><b>${Math.round(c.distance)} m</b>`)
+        );
+      });
+      nearLayer.addTo(map);
+
+      if (cafes.length === 0) alert("Không có quán nào trong bán kính này.");
+    } catch (e) {
+      alert("Near me lỗi: " + (e.message || e));
+    }
+  }
+
+
+// Tool 3: Đường đi tới quán (Route)
+//   (1) Đi từ vị trí của tôi (GPS - dùng locateMe của Tool 2)
+//   (2) Đi từ vị trí nhập (lat,lng | lat lng | địa chỉ)
+
+
+let routingControl = null;
+let startMarker = null;
+
+// cache geocode để khỏi gọi lại Nominatim nhiều lần
+const tool3_geoCache = new Map();
+
+function tool3_clearRoute() {
+  if (routingControl) {
+    map.removeControl(routingControl);
+    routingControl = null;
+  }
+  if (startMarker) {
+    map.removeLayer(startMarker);
+    startMarker = null;
+  }
+  const hint = document.getElementById("routeHint");
+  if (hint) hint.innerText = "click để chọn địa điểm.";
+}
+
+
+
+function tool3_drawRoute(start, dest) {
+  tool3_clearRoute();
+
+  startMarker = L.marker([start.lat, start.lng])
+    .addTo(map)
+    .bindPopup("🟢 Điểm bắt đầu")
+    .openPopup();
+
+    // Xoá steps cũ
+  const stepsEl = document.getElementById("routeSteps");
+  if (stepsEl) stepsEl.innerHTML = "";
+
+  routingControl = L.Routing.control({
+    waypoints: [
+      L.latLng(start.lat, start.lng),
+      L.latLng(dest.lat, dest.lng),
+    ],
+    routeWhileDragging: false,
+    addWaypoints: false,
+    show: false, // tắt panel mặc định
+    fitSelectedRoutes: true,
+    // đổi màu đường đi
+  lineOptions: {
+    styles: [
+      { color: "blue", opacity: 0.9, weight: 6 }
+    ]
+  }
+  }).addTo(map);
+
+  routingControl.on("routesfound", function (e) {
+    const r = e.routes[0];
+    const distanceKm = (r.summary.totalDistance / 1000).toFixed(2);
+    const timeMin = Math.round(r.summary.totalTime / 60);
+
+    const hint = document.getElementById("routeHint");
+    if (hint) hint.innerText = `Đích: ${dest.name || "quán"} | ${distanceKm} km ~ ${timeMin} phút`;
+    
+  });
+
+  routingControl.on("routingerror", function () {
+    const hint = document.getElementById("routeHint");
+    if (hint) hint.innerText = "Không lấy được đường đi. Thử lại sau.";
+
+    const stepsEl = document.getElementById("routeSteps");
+    if (stepsEl) stepsEl.innerHTML = "";
+  });
+}
+
+// Nhận "lat,lng" hoặc "lat lng"
+function tool3_parseLatLng(text) {
+  const m = (text || "").trim().match(/^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/);
+  if (!m) return null;
+  return { lat: parseFloat(m[1]), lng: parseFloat(m[3]) };
+}
+
+// Geocode bằng Nominatim + fallback bỏ số nhà đầu chuỗi
+async function tool3_geocodeAddress(q) {
+  async function nominatimSearch(query) {
+    // cache theo query đã normalize
+    const key = query.toLowerCase().trim();
+    if (tool3_geoCache.has(key)) return tool3_geoCache.get(key);
+
+    const url =
+      "https://nominatim.openstreetmap.org/search" +
+      `?format=json&limit=1&countrycodes=vn&accept-language=vi` +
+      `&q=${encodeURIComponent(query)}`;
+
+    try {
+      const res = await fetch(url, { headers: { "Accept": "application/json" } });
+      if (!res.ok) return null;
+
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) return null;
+
+      const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      tool3_geoCache.set(key, result);
+      return result;
+    } catch {
+      return null;
+    }
+  }
+
+  let query = (q || "").trim();
+  if (!query) return null;
+
+  // thêm HCM + Việt Nam để tăng tỉ lệ khớp (kể cả khi user gõ không dấu)
+  const low = query.toLowerCase();
+  if (!low.includes("hồ chí minh") && !low.includes("ho chi minh")) query += ", Hồ Chí Minh";
+  if (!low.includes("việt nam") && !low.includes("vietnam")) query += ", Việt Nam";
+
+  // LẦN 1: tìm theo chuỗi đầy đủ
+  let result = await nominatimSearch(query);
+  if (result) return result;
+
+  // LẦN 2: fallback bỏ số nhà đầu chuỗi (vd "236 ...")
+  const noHouseNumber = query.replace(/^\s*\d+\s+/, "");
+  if (noHouseNumber !== query) {
+    result = await nominatimSearch(noHouseNumber);
+    if (result) return result;
+  }
+
+  return null;
+}
+
+// (1) Đi từ vị trí của tôi
+btnRouteMyLoc.addEventListener("click", async () => {
+  if (!selectedDest) {
+    alert("Bạn chưa chọn quán đích. Hãy click 1 marker quán trước.");
+    return;
+  }
+  try {
+    const { lat, lng } = await locateMe();
+    tool3_drawRoute({ lat, lng }, selectedDest);
+  } catch {
+    alert("Không lấy được vị trí hiện tại. Hãy bật GPS/Location và cho phép website.");
+  }
+});
+
+// (2) Đi từ vị trí nhập
+btnRouteFromInput.addEventListener("click", async () => {
+  if (!selectedDest) {
+    alert("Bạn chưa chọn quán đích. Hãy click 1 marker quán trước.");
+    return;
+  }
+
+  const text = (startInputEl.value || "").trim();
+  if (!text) {
+    alert("Bạn chưa nhập vị trí bắt đầu.");
+    return;
+  }
+
+  // ưu tiên lat/lng
+  let start = tool3_parseLatLng(text);
+
+  // nếu không phải tọa độ -> geocode địa chỉ
+  if (!start) {
+    const hint = document.getElementById("routeHint");
+    if (hint) hint.innerText = "Đang tìm tọa độ từ địa chỉ...";
+    start = await tool3_geocodeAddress(text);
+  }
+
+  if (!start) {
+    alert("Không tìm được vị trí. Thử nhập ngắn hơn (ví dụ: '236 Lê Văn Sỹ') hoặc nhập dạng 'lat,lng'.");
+    return;
+  }
+
+  tool3_drawRoute(start, selectedDest);
+});
+
+// Xóa đường đi
+const btnClearRoute = document.getElementById("btnClearRoute");
+if (btnClearRoute) btnClearRoute.addEventListener("click", tool3_clearRoute);
+
+//tool 4 gom cụm
+
+let tool4_enabled = true;
+let tool4_clusterLayer = null; // L.markerClusterGroup()
+let tool4_plainLayer = null;   // L.layerGroup()
+
+function tool4_init() {
+  const chk = document.getElementById("chkCluster");
+  tool4_enabled = chk ? chk.checked : true;
+
+  tool4_clusterLayer = L.markerClusterGroup();
+  tool4_plainLayer = L.layerGroup();
+
+  // add lớp ban đầu
+  if (tool4_enabled) tool4_clusterLayer.addTo(map);
+  else tool4_plainLayer.addTo(map);
+
+  // toggle
+  if (chk) {
+    chk.addEventListener("change", () => {
+      tool4_enabled = chk.checked;
+
+      map.removeLayer(tool4_clusterLayer);
+      map.removeLayer(tool4_plainLayer);
+
+      if (tool4_enabled) tool4_clusterLayer.addTo(map);
+      else tool4_plainLayer.addTo(map);
+
+      tool4_rebuild();
+    });
+  }
+}
+
+function tool4_addMarker(marker) {
+  if (!marker) return;
+  if (tool4_enabled) tool4_clusterLayer.addLayer(marker);
+  else tool4_plainLayer.addLayer(marker);
+}
+
+function tool4_clear() {
+  if (tool4_clusterLayer) tool4_clusterLayer.clearLayers();
+  if (tool4_plainLayer) tool4_plainLayer.clearLayers();
+}
+
+function tool4_rebuild() {
+  tool4_clear();
+  for (const mk of markerById.values()) {
+    tool4_addMarker(mk);
+  }
+}
+
+// tool 5 mật độ quán
+let tool5_enabled = false;
+let tool5_heatLayer = null;
+
+function tool5_init() {
+  const chk = document.getElementById("chkHeatmap");
+  tool5_enabled = chk ? chk.checked : false;
+
+  // tạo heat layer rỗng (data sẽ set sau khi loadBranches)
+  tool5_heatLayer = L.heatLayer([], {
+    radius: 35,      // bán kính "lan màu"
+    blur: 25,        // độ mịn
+    maxZoom: 17      // zoom lớn thì bớt loang
+  });
+
+  if (tool5_enabled) tool5_heatLayer.addTo(map);
+
+  if (chk) {
+    chk.addEventListener("change", () => {
+      tool5_enabled = chk.checked;
+      tool5_toggle(tool5_enabled);
+
+      // khi bật lên thì vẽ lại từ allFeatures hiện có
+      if (tool5_enabled) tool5_setData(allFeatures);
+    });
+  }
+}
+
+function tool5_toggle(enable) {
+  if (!tool5_heatLayer) return;
+
+  if (enable) {
+    tool5_heatLayer.addTo(map);
+  } else {
+    map.removeLayer(tool5_heatLayer);
+  }
+}
+
+// Nhận danh sách features (GeoJSON) và đổ vào heatmap
+function tool5_setData(features) {
+  if (!tool5_heatLayer) return;
+  if (!Array.isArray(features)) features = [];
+
+  // Leaflet.heat nhận dạng: [lat, lng, intensity]
+  // intensity có thể để 1 (mặc định). Sau này muốn "quán nổi tiếng" thì tăng intensity.
+  const points = [];
+
+  for (const f of features) {
+    const coords = f?.geometry?.coordinates; // [lng, lat]
+    if (!coords || coords.length < 2) continue;
+
+    const lat = coords[1];
+    const lng = coords[0];
+
+    // intensity đơn giản = 1
+    points.push([lat, lng, 1]);
+  }
+
+  tool5_heatLayer.setLatLngs(points);
+
+  // nếu heatmap đang bật thì ok, còn đang tắt thì không cần addTo(map)
+}
+
+  searchEl.addEventListener("input", applySearch);
+  btnNearMe.addEventListener("click", nearMe);
+  tool4_init();   // cluster
+  tool5_init();   // heatmap
+  loadBranches();
+
+  
+
+// (thu gọn / mở rộng)
+const sidebar = document.getElementById("sidebar");
+const btnToggleList = document.getElementById("btnToggleList");
+
+btnToggleList.addEventListener("click", () => {
+  sidebar.classList.toggle("collapsed");
+  // Leaflet cần gọi invalidateSize để map không bị trắng/nhòe khi đổi width
+  setTimeout(() => map.invalidateSize(), 200);
+});
+</script>
+{% endblock %}
