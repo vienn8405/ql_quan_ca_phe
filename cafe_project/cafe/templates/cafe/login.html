@@ -1,0 +1,61 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - CafeFlow</title>
+    <link rel="stylesheet" href="{% static 'cafe/style.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="login-page-body">
+    <div class="login-shell">
+        <div class="login-visual">
+            <div class="login-overlay-card">
+                <span class="summary-kicker">CafeFlow</span>
+                <h1>Đăng nhập để quản lý quán cà phê thông minh</h1>
+                <p>
+                    Truy cập hệ thống để theo dõi sản phẩm, đơn hàng, tồn kho,
+                    pha chế tự động, dashboard và GIS chi nhánh.
+                </p>
+            </div>
+        </div>
+
+        <div class="login-form-wrap">
+            <div class="login-card-v2">
+                <div class="login-brand">☕ CafeFlow</div>
+                <h2>Đăng nhập</h2>
+                <p class="login-sub">Chào mừng bạn quay lại hệ thống quản lý quán cà phê.</p>
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert-box" style="{% if message.tags == 'error' %}color:#c0392b;background:#fdecea;{% endif %}padding:10px;border-radius:8px;margin-bottom:12px;">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="form-group-v2">
+                        <label>Tên đăng nhập</label>
+                        <input type="text" name="username" required>
+                    </div>
+
+                    <div class="form-group-v2">
+                        <label>Mật khẩu</label>
+                        <input type="password" name="password" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary login-btn-full">🔐 Đăng nhập</button>
+                </form>
+
+                <div class="login-bottom-link">
+                    <a href="{% url 'user_home' %}">← Quay về trang người dùng</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

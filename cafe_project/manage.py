@@ -6,7 +6,13 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cafe_project.settings')
+    os.environ.setdefault(
+        'DJANGO_SETTINGS_MODULE',
+        'cafe_project.settings'
+    )
+
+    os.environ["GDAL_LIBRARY_PATH"] = r"C:\Users\admin\AppData\Local\Programs\OSGeo4W\bin\gdal312.dll"
+    os.environ["GEOS_LIBRARY_PATH"] = r"C:\Users\admin\AppData\Local\Programs\OSGeo4W\bin\geos_c.dll"
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

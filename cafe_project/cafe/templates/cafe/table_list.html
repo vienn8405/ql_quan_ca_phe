@@ -1,0 +1,54 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Quản lý Bàn{% endblock %}
+{% block page_heading %}Quản lý Bàn{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">Quản lý Bàn</h2>
+        <p class="page-header-desc">Theo dõi và quản lý trạng thái các bàn trong quán.</p>
+    </div>
+    <div class="page-header-actions">
+        <form method="GET" class="filter-bar">
+            <select name="branch_id" class="form-control" onchange="this.form.submit()">
+                <option value="">Tất cả chi nhánh</option>
+                {% for b in branches %}
+                <option value="{{ b.id }}" {% if selected_branch == b.id %}selected{% endif %}>{{ b.name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <a href="{% url 'table_add' %}" class="btn btn-primary">+ Thêm bàn</a>
+    </div>
+</div>
+
+{% if messages %}
+{% for msg in messages %}
+<div class="alert alert-{{ msg.tags }}" style="margin-bottom:14px;">{{ msg }}</div>
+{% endfor %}
+{% endif %}
+
+{% if not tables %}
+<div class="empty-state-cell" style="padding:40px;">Chưa có bàn nào. Hãy thêm bàn đầu tiên!</div>
+{% else %}
+<div class="text-muted text-sm mb-md">
+    Danh sách bàn hiện có: {{ tables|length }}
+</div>
+<div class="content-scroll-box scroll-box-md">
+    <div class="table-grid">
+        {% for table in tables %}
+        <div class="table-card {{ table.status }}">
+            <div class="table-num">{{ table.number }}</div>
+            <div class="table-branch">{{ table.branch.name|default:"Chưa có chi nhánh" }}</div>
+            <div class="table-area">{{ table.area|default:"—" }}</div>
+            <div class="table-cap">{{ table.capacity }} người</div>
+            <span class="table-status status-{{ table.status }}">{{ table.get_status_display }}</span>
+            <div class="table-actions">
+                <a href="{% url 'table_edit' table.id %}">Sửa</a>
+                <a href="{% url 'table_delete' table.id %}" class="del" onclick="return confirm('Xóa bàn {{ table.number }}?')">Xóa</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

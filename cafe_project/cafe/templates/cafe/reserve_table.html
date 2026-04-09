@@ -1,0 +1,149 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Đặt Bàn Trước{% endblock %}
+{% block page_heading %}Đặt Bàn Trước{% endblock %}
+
+{% block content %}
+
+<div class="reserve-container">
+    <div class="reserve-header">
+        <h2>Đặt Bàn Giữ Chỗ</h2>
+        <p>Chọn chi nhánh và thời gian, chúng tôi sẽ chuẩn bị vị trí tốt nhất cho bạn.</p>
+        <p style="margin-top:8px; color:#7a5c45; font-size:14px;">Bàn sẽ được giữ trong vòng 30 phút tính từ giờ đặt nếu khách chưa tới quán.</p>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-success mb-md">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="POST" action="{% url 'reserve_table' %}">
+        {% csrf_token %}
+        <div class="grid-2">
+            <div class="form-group">
+                <label>Tên của bạn*</label>
+                <input type="text" name="customer_name" required placeholder="VD: Nguyễn Văn A">
+            </div>
+            <div class="form-group">
+                <label>Số điện thoại*</label>
+                <input type="text" name="customer_phone" required placeholder="SĐT liên hệ lúc đến">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Email (để nhận xác nhận đặt bàn)</label>
+            <input type="email" name="customer_email" placeholder="VD: email@example.com">
+        </div>
+
+        <div class="form-group">
+            <label>Chi nhánh phục vụ*</label>
+            <select name="branch_id" id="res_branch" required>
+                <option value="">-- Chọn chi nhánh --</option>
+                {% for b in branches %}
+                <option value="{{ b.id }}">{{ b.name }} ({{ b.address }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="grid-2">
+            <div class="form-group">
+                <label>Ngày đến*</label>
+                <input type="date" name="date" id="res_date" required min="{{ min_date }}">
+            </div>
+            <div class="form-group">
+                <label>Giờ đến*</label>
+                <input type="time" name="time" id="res_time" required>
+            </div>
+        </div>
+        
+        <div id="table-selection-container" class="table-selection-box" style="display:none;">
+            <label class="table-selection-label">Vị trí Bàn Trống (Màu xanh)</label>
+            <div id="table-list" class="table-selection-list">
+                <!-- Dữ liệu JS -->
+            </div>
+            <input type="hidden" name="table_id" id="selected_table" required>
+        </div>
+
+        <div class="form-group">
+            <label>Số lượng người*</label>
+            <input type="number" name="guests" min="1" max="20" value="2" required>
+        </div>
+
+        <div class="form-group service-option-box">
+            <label class="service-option-label">Tùy chọn Phục vụ*</label>
+            <label class="service-option">
+                <input type="radio" name="service_type" value="table_only" checked> Chỉ giữ bàn
+            </label>
+            <label class="service-option">
+                <input type="radio" name="service_type" value="preorder"> Đặt món trước (Yêu cầu thanh toán cọc 30% qua QR)
+            </label>
+        </div>
+
+        <div class="form-group mt-md">
+            <label>Ghi chú thêm (Không bắt buộc)</label>
+            <textarea name="note" rows="3" placeholder="Yêu cầu ghế trẻ em, trang trí sinh nhật..."></textarea>
+        </div>
+
+        <button type="submit" class="reserve-submit">Xác Nhận Đặt Bàn</button>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const branchEl = document.getElementById('res_branch');
+    const dateEl = document.getElementById('res_date');
+    const timeEl = document.getElementById('res_time');
+    const tableContainer = document.getElementById('table-selection-container');
+    const tableList = document.getElementById('table-list');
+    const selectedTableInput = document.getElementById('selected_table');
+
+    function checkTables() {
+        const branch_id = branchEl.value;
+        const date = dateEl.value;
+        const time = timeEl.value;
+
+        if (branch_id && date && time) {
+            tableContainer.style.display = 'block';
+            tableList.innerHTML = '<span style="color:#888;">Đang tìm bàn rảnh...</span>';
+            selectedTableInput.value = '';
+
+            fetch(`/api/tables/available/?branch_id=${branch_id}&date=${date}&time=${time}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.tables && data.tables.length > 0) {
+                    tableList.innerHTML = '';
+                    data.tables.forEach(t => {
+                        const btn = document.createElement('div');
+                        btn.style = `padding:10px 16px; background:#e8f5e9; color:#2e7d32; border:1px solid #c8e6c9; border-radius:8px; cursor:pointer; font-weight:600; text-align:center; flex:1; min-width:80px; transition:0.2s;`;
+                        btn.innerHTML = `Bàn ${t.number}<br><small style="font-weight:normal;">(${t.capacity} ghế)</small>`;
+                        
+                        btn.onclick = function() {
+                            // Reset các nút
+                            Array.from(tableList.children).forEach(child => {
+                                child.style.background = '#e8f5e9';
+                                child.style.color = '#2e7d32';
+                                child.style.borderColor = '#c8e6c9';
+                            });
+                            // Nút Active
+                            btn.style.background = '#28a745';
+                            btn.style.color = '#fff';
+                            btn.style.borderColor = '#28a745';
+                            selectedTableInput.value = t.id;
+                        };
+                        tableList.appendChild(btn);
+                    });
+                } else {
+                    tableList.innerHTML = '<span style="color:#d9534f; font-weight:600;">❌ Xin lỗi, khung giờ này đã hết Bàn trống! Vui lòng chọn giờ khác.</span>';
+                }
+            });
+        }
+    }
+
+    branchEl.addEventListener('change', checkTables);
+    dateEl.addEventListener('change', checkTables);
+    timeEl.addEventListener('change', checkTables);
+});
+</script>
+{% endblock %}

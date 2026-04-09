@@ -1,0 +1,55 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Quản lý Nhà Cung Cấp{% endblock %}
+{% block page_heading %}Danh Sách Nhà Cung Cấp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <p class="page-header-desc">Quản lý đối tác cung cấp nguyên vật liệu cho chuỗi quán.</p>
+    </div>
+    <a href="{% url 'supplier_add' %}" class="btn btn-success">+ Thêm Nhà CC mới</a>
+</div>
+
+<div class="widget-card">
+<div class="widget-body p-0">
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Tên Nhà CC</th>
+            <th>Liên hệ</th>
+            <th>SĐT / Email</th>
+            <th>Trạng thái</th>
+            <th>Lịch sử nhập</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in suppliers %}
+        <tr>
+            <td><strong>{{ s.name }}</strong><br><small class="text-muted">{{ s.address }}</small></td>
+            <td>{{ s.contact_person|default:"N/A" }}</td>
+            <td>{{ s.phone }}<br><small class="text-muted">{{ s.email }}</small></td>
+            <td>
+                {% if s.is_active %}
+                <span class="badge badge-green">Đang hợp tác</span>
+                {% else %}
+                <span class="badge badge-red">Ngừng GD</span>
+                {% endif %}
+            </td>
+            <td>
+                <ul style="margin:0; padding-left:16px; font-size:12px; color:var(--text-secondary);">
+                    {% for p in s.orders.all %}
+                    <li>{{ p.order_date|date:"d/m" }}: Nhập {{ p.quantity }}{{ p.ingredient.unit }} {{ p.ingredient.name }}</li>
+                    {% empty %}
+                    <li style="list-style:none; margin-left:-16px;" class="text-muted">Chưa có đơn</li>
+                    {% endfor %}
+                </ul>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="empty-state-cell">Chưa có nhà cung cấp nào.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+</div>
+{% endblock %}

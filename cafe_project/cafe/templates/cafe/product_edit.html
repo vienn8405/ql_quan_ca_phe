@@ -1,0 +1,60 @@
+{% extends 'cafe/base.html' %}
+
+{% block title %}Sửa sản phẩm{% endblock %}
+{% block page_heading %}Sửa sản phẩm{% endblock %}
+
+{% block content %}
+<div class="form-page-wrap">
+    <div class="form-card-v3">
+        <div class="form-card-head">
+            <span class="summary-kicker">Product Update</span>
+            <h2>Cập nhật sản phẩm</h2>
+            <p>Chỉnh sửa thông tin món đang có trong hệ thống.</p>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="admin-form-v3">
+            {% csrf_token %}
+
+            <div class="form-grid-v3">
+                <div class="form-group-v3">
+                    <label>Tên sản phẩm</label>
+                    <input type="text" name="name" value="{{ product.name }}" required>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Giá</label>
+                    <input type="number" name="price" step="0.01" value="{{ product.price }}" required>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Danh mục</label>
+                    <select name="category" required>
+                        {% for c in categories %}
+                            <option value="{{ c.id }}" {% if c.id == product.category.id %}selected{% endif %}>
+                                {{ c.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Ảnh sản phẩm mới</label>
+                    <input type="file" name="image">
+                </div>
+            </div>
+
+            {% if product.image %}
+            <div class="preview-box-v3">
+                <span>Ảnh hiện tại</span>
+                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="preview-img-v3">
+            </div>
+            {% endif %}
+
+            <div class="form-action-row-v3">
+                <button type="submit" class="btn btn-primary">💾 Cập nhật sản phẩm</button>
+                <a href="{% url 'product_list' %}" class="btn btn-secondary">← Quay lại</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

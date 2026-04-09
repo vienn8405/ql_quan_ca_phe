@@ -1,0 +1,87 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Quản lý Đặt Bàn{% endblock %}
+{% block page_heading %}Quản lý Đặt Bàn Trước{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">📅 Khách Đặt Bàn</h2>
+        <p class="page-header-desc">Danh sách đặt trước chỗ ngồi, phòng từ khách hàng.</p>
+    </div>
+</div>
+
+<div class="table-responsive content-scroll-box scroll-box-md">
+    <table class="table cafe-table">
+        <thead>
+            <tr>
+                <th>Khách hàng</th>
+                <th>SĐT</th>
+                <th>Thời gian</th>
+                <th>Chi nhánh</th>
+                <th>Bàn</th>
+                <th>Số người</th>
+                <th>Giữ bàn đến</th>
+                <th>Ghi chú</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in reservations %}
+            <tr>
+                <td><strong>{{ r.customer_name }}</strong></td>
+                <td>{{ r.customer_phone }}</td>
+                <td><span class="text-danger" style="font-weight:600;">{{ r.time|time:"H:i" }}</span><br>{{ r.date|date:"d/m/Y" }}</td>
+                <td>{{ r.branch.name }}</td>
+                <td>{% if r.table %}Bàn {{ r.table.number }}{% else %}<span class="text-muted">Đang xếp</span>{% endif %}</td>
+                <td>{{ r.guests }} người</td>
+                <td>
+                    {% if r.hold_expires_at and r.status == 'pending' %}
+                        {{ r.hold_expires_at|date:"H:i d/m/Y" }}
+                    {% elif r.hold_expires_at and r.status == 'confirmed' %}
+                        {{ r.hold_expires_at|date:"H:i d/m/Y" }}
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td><small>{{ r.note }}</small></td>
+                <td>
+                    {% if r.status == 'pending' %}
+                        <span class="badge badge-res-pending">Chờ duyệt</span>
+                    {% elif r.status == 'confirmed' %}
+                        <span class="badge badge-res-confirmed">Đã xác nhận</span>
+                    {% elif r.status == 'seated' %}
+                        <span class="badge badge-blue">Khách đã nhận bàn</span>
+                    {% elif r.status == 'completed' %}
+                        <span class="badge badge-res-completed">Đã hoàn thành</span>
+                    {% elif r.status == 'expired' %}
+                        <span class="badge badge-red">Hết hạn giữ bàn</span>
+                    {% else %}
+                        <span class="badge badge-res-cancelled">Đã hủy</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if r.status == 'pending' %}
+                        <a href="{% url 'admin_reservation_status' r.id 'confirmed' %}" class="btn btn-primary btn-sm">✅ Xác nhận</a>
+                        <a href="{% url 'admin_reservation_status' r.id 'cancelled' %}" class="btn btn-secondary btn-sm" onclick="return confirm('Hủy bàn này?');">❌ Hủy</a>
+                        <a href="{% url 'admin_reservation_status' r.id 'expired' %}" class="btn btn-secondary btn-sm" onclick="return confirm('Đánh dấu reservation này đã hết hạn giữ bàn?');">⏰ Hết hạn</a>
+                    {% elif r.status == 'confirmed' %}
+                        <a href="{% url 'admin_reservation_status' r.id 'seated' %}" class="btn btn-success btn-sm">🪑 Nhận bàn</a>
+                        <a href="{% url 'admin_reservation_status' r.id 'cancelled' %}" class="btn btn-secondary btn-sm" onclick="return confirm('Hủy reservation này?');">❌ Hủy</a>
+                        <a href="{% url 'admin_reservation_status' r.id 'expired' %}" class="btn btn-secondary btn-sm" onclick="return confirm('Đánh dấu reservation này đã hết hạn giữ bàn?');">⏰ Hết hạn</a>
+                    {% elif r.status == 'seated' %}
+                        <a href="{% url 'admin_reservation_status' r.id 'completed' %}" class="btn btn-success btn-sm">✅ Hoàn tất</a>
+                        <a href="{% url 'admin_reservation_status' r.id 'cancelled' %}" class="btn btn-secondary btn-sm" onclick="return confirm('Hủy reservation này?');">❌ Hủy</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="text-center">Chưa có khách đặt bàn.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

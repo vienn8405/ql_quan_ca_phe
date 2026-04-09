@@ -1,0 +1,106 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Chấm công Nhân viên{% endblock %}
+{% block page_heading %}Chấm công{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">📅 Chấm công Nhân viên</h2>
+        <p class="page-header-desc">Theo dõi giờ làm theo tháng và tổng hợp số ngày công.</p>
+    </div>
+</div>
+
+{% if messages %}{% for msg in messages %}
+<div class="alert alert-success mb-md">{{ msg }}</div>
+{% endfor %}{% endif %}
+
+<div class="widget-card mb-md">
+    <div class="widget-body">
+        <form method="GET" class="filter-bar">
+            <div class="form-group mb-0">
+                <label class="form-label text-sm">Tháng</label>
+                <select name="month" class="form-control">
+                    {% for m in months %}
+                    <option value="{{ m }}" {% if m == month %}selected{% endif %}>Tháng {{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group mb-0">
+                <label class="form-label text-sm">Năm</label>
+                <select name="year" class="form-control">
+                    {% for y in years %}
+                    <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group mb-0">
+                <label class="form-label text-sm">Nhân viên</label>
+                <select name="employee_id" class="form-control">
+                    <option value="">Tất cả</option>
+                    {% for emp in employees %}
+                    <option value="{{ emp.id }}" {% if selected_employee_id == emp.id|stringformat:"s" %}selected{% endif %}>{{ emp.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-secondary align-end">🔍 Lọc</button>
+        </form>
+    </div>
+</div>
+
+{% if summary %}
+<div class="widget-card mb-md">
+    <div class="widget-header">
+        <h4 class="widget-header-title">📊 Tổng hợp ngày công tháng {{ month }}/{{ year }}</h4>
+    </div>
+    <div class="widget-body">
+        <div class="stat-cards-row">
+            {% for item in summary %}
+            <div class="stat-card">
+                <div class="stat-card-label">{{ item.name }}</div>
+                <div class="stat-card-value text-md">{{ item.days }} ngày</div>
+                <div class="text-muted text-sm">{{ item.hours }} giờ</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="quick-action-row">
+    {% for emp in employees %}
+    <a href="{% url 'attendance_edit' emp.id %}" class="btn btn-sm btn-primary">
+        + Chấm {{ emp.name }}
+    </a>
+    {% endfor %}
+</div>
+
+<div class="widget-card">
+<div class="widget-body p-0">
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Nhân viên</th><th>Ngày</th><th>Giờ vào</th>
+            <th>Giờ ra</th><th>Số giờ</th><th>Ghi chú</th><th>Xóa</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for log in logs %}
+        <tr>
+            <td>{{ log.employee.name }}</td>
+            <td>{{ log.date|date:"d/m/Y" }}</td>
+            <td>{{ log.check_in|default:"—" }}</td>
+            <td>{{ log.check_out|default:"—" }}</td>
+            <td>{{ log.work_hours }} giờ</td>
+            <td class="text-muted">{{ log.note|default:"—" }}</td>
+            <td>
+                <a href="{% url 'attendance_delete' log.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Xóa bản ghi này?')">🗑️</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="empty-state-cell">Không có dữ liệu chấm công</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+</div>
+{% endblock %}

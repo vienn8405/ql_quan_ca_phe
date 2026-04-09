@@ -1,0 +1,80 @@
+{% extends 'cafe/base.html' %}
+{% load currency_filters %}
+
+{% block title %}Quản lý sản phẩm{% endblock %}
+{% block page_heading %}Quản lý sản phẩm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">Danh sách sản phẩm</h2>
+        <p class="page-header-desc">Quản lý các món đang bán trong quán cà phê.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Quay lại Dashboard</a>
+        <a href="{% url 'product_add' %}" class="btn btn-primary">Thêm sản phẩm</a>
+    </div>
+</div>
+
+<form method="get" class="filter-panel" style="margin-bottom:16px;">
+    <div class="filter-row">
+        <div class="filter-group" style="min-width:320px; flex:1;">
+            <label>Tìm kiếm sản phẩm</label>
+            <input
+                type="text"
+                name="q"
+                value="{{ q }}"
+                placeholder="Tên sản phẩm, mã/id, danh mục hoặc giá..."
+            >
+        </div>
+        <button type="submit" class="btn-filter">Tìm kiếm</button>
+        <a href="{% url 'product_list' %}" class="btn-reset">Xóa tìm kiếm</a>
+    </div>
+</form>
+
+{% if products %}
+<div class="admin-card-grid-scroll">
+    <div class="admin-card-grid">
+        {% for p in products %}
+        <div class="admin-product-card">
+            <div class="admin-product-media">
+                {% if p.image %}
+                    <img src="{{ p.image.url }}" alt="{{ p.name }}" class="admin-product-img">
+                {% else %}
+                    <div class="admin-product-noimg">☕</div>
+                {% endif %}
+            </div>
+
+            <div class="admin-product-body">
+                <h3>{{ p.name }}</h3>
+                <p><strong>ID:</strong> #{{ p.id }}</p>
+                <p><strong>Giá:</strong> {{ p.price|vnd }}</p>
+                <p><strong>Danh mục:</strong> {{ p.category.name|default:"Chưa phân loại" }}</p>
+
+                <div class="admin-card-actions">
+                    <a href="{% url 'product_edit' p.id %}" class="btn btn-secondary">Sửa</a>
+                    <a href="{% url 'recipe_manage' p.id %}" class="btn btn-secondary">Công thức</a>
+                    <a href="{% url 'product_delete' p.id %}" class="btn btn-secondary"
+                       onclick="return confirm('Bạn có chắc muốn xóa sản phẩm này không?')">
+                        Xóa
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="empty-state-box">
+    <div class="empty-icon">📦</div>
+    <h3>{% if q %}Không tìm thấy sản phẩm phù hợp{% else %}Chưa có sản phẩm{% endif %}</h3>
+    <p>
+        {% if q %}
+        Hãy thử tìm bằng tên sản phẩm, mã sản phẩm, danh mục hoặc giá.
+        {% else %}
+        Hãy thêm sản phẩm đầu tiên để bắt đầu quản lý menu.
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+{% endblock %}

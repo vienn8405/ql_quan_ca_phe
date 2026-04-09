@@ -1,0 +1,106 @@
+{% extends 'cafe/base.html' %}
+
+{% block title %}Nhập nguyên vật liệu từ Excel{% endblock %}
+{% block page_heading %}Nhập nguyên vật liệu{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">Nhập nguyên vật liệu từ Excel</h2>
+        <p class="page-header-desc">Upload file Excel (.xlsx) để thêm mới hoặc cập nhật nguyên vật liệu hàng loạt.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'material_list' %}{% if selected_branch %}?branch_id={{ selected_branch.id }}{% endif %}" class="btn btn-secondary">← Quay lại kho</a>
+        <a href="{% url 'download_material_template' %}" class="btn btn-primary">Tải file mẫu Excel</a>
+    </div>
+</div>
+
+<div class="section-box">
+    <h4>Hướng dẫn</h4>
+    <div class="import-guide">
+        <ul style="margin:0; padding-left:20px; line-height:2;">
+            <li>Tải file mẫu Excel bằng nút <strong>Tải file mẫu Excel</strong> ở trên.</li>
+            <li>Điền dữ liệu theo đúng cột: <strong>Tên nguyên liệu</strong>, <strong>Đơn vị</strong>, <strong>Số lượng</strong>, <strong>Mức tối thiểu</strong>.</li>
+            <li>Nếu chọn chi nhánh, số lượng và mức tối thiểu sẽ được cập nhật cho kho nguyên liệu của chi nhánh đó.</li>
+            <li>Nếu không chọn chi nhánh, dữ liệu sẽ được cập nhật vào kho dùng chung để giữ tương thích với dữ liệu cũ.</li>
+            <li>Chỉ hỗ trợ file <strong>.xlsx</strong>.</li>
+        </ul>
+    </div>
+</div>
+
+<div class="section-box">
+    <h4>Chọn file và import</h4>
+    <form method="post" enctype="multipart/form-data" class="import-form">
+        {% csrf_token %}
+        <div class="form-group" style="margin-bottom:16px;">
+            <label class="form-label" for="branch_id">Chi nhánh nhập kho</label>
+            <select name="branch_id" id="branch_id" class="form-control">
+                <option value="">Kho dùng chung / dữ liệu tổng</option>
+                {% for branch in branches %}
+                <option value="{{ branch.id }}" {% if selected_branch and selected_branch.id == branch.id %}selected{% endif %}>
+                    {{ branch.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+            <label class="form-label" for="excel_file">File Excel (.xlsx)</label>
+            <input type="file" name="excel_file" id="excel_file" accept=".xlsx"
+                   class="form-control" required
+                   style="padding:10px; border:2px dashed var(--border-color, #d0c8be); border-radius:8px;">
+        </div>
+        <button type="submit" class="btn btn-primary">Bắt đầu Import</button>
+    </form>
+</div>
+
+<div class="section-box">
+    <p style="margin:0;">
+        {% if selected_branch %}
+        File import hiện sẽ cập nhật tồn kho cho chi nhánh <strong>{{ selected_branch.name }}</strong>.
+        {% else %}
+        File import hiện sẽ cập nhật dữ liệu dùng chung / dữ liệu tổng nếu bạn không chọn chi nhánh.
+        {% endif %}
+    </p>
+</div>
+
+{% if import_done %}
+<div class="section-box">
+    <h4>Kết quả Import</h4>
+
+    <div class="stat-cards" style="margin-bottom:16px;">
+        <div class="stat-card">
+            <div class="stat-card-icon">✓</div>
+            <div class="stat-card-value text-success">{{ created_count }}</div>
+            <div class="stat-card-label">Tạo mới</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-icon">↻</div>
+            <div class="stat-card-value text-blue">{{ updated_count }}</div>
+            <div class="stat-card-label">Cập nhật</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-icon">!</div>
+            <div class="stat-card-value text-warning">{{ error_count }}</div>
+            <div class="stat-card-label">Cảnh báo / Lỗi</div>
+        </div>
+    </div>
+
+    {% if error_messages %}
+    <div class="import-errors" style="background:#fef3cd; border:1px solid #f0d78c; border-radius:8px; padding:16px; margin-top:12px;">
+        <strong>Chi tiết lỗi / cảnh báo:</strong>
+        <ul style="margin:8px 0 0 16px; padding:0; font-size:14px; line-height:1.8;">
+            {% for msg in error_messages %}
+            <li>{{ msg }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div style="margin-top:16px;">
+        <a href="{% url 'material_list' %}{% if selected_branch %}?branch_id={{ selected_branch.id }}{% endif %}" class="btn btn-primary">Xem kho nguyên vật liệu</a>
+        <a href="{% url 'import_materials_excel' %}{% if selected_branch %}?branch_id={{ selected_branch.id }}{% endif %}" class="btn btn-secondary">Import thêm</a>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

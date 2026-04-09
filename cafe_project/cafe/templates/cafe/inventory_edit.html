@@ -1,0 +1,39 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Cập nhật kho{% endblock %}
+{% block page_heading %}Cập nhật kho{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">📦 Cập nhật kho</h2>
+        <p class="page-header-desc">Điều chỉnh số lượng tồn kho cho sản phẩm.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="/admin/inventory/" class="btn btn-secondary">← Quay lại</a>
+    </div>
+</div>
+
+<div class="form-container form-narrow">
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Sản phẩm</label>
+            <div class="form-control input-readonly"><strong>{{ inventory.product.name }}</strong></div>
+        </div>
+
+        {% if error %}
+            <div class="alert-danger">{{ error }}</div>
+        {% endif %}
+
+        <div class="form-group">
+            <label>Số lượng tồn kho</label>
+            <input type="number" name="quantity" value="{{ inventory.quantity }}" min="0" required class="form-control">
+        </div>
+
+        <div class="form-action-row-v3">
+            <button type="submit" class="btn btn-primary">💾 Cập nhật</button>
+            <a href="/admin/inventory/" class="btn-cancel">Hủy</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

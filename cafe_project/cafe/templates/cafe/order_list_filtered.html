@@ -1,0 +1,86 @@
+{% extends 'cafe/base.html' %}
+{% load currency_filters %}
+{% block title %}Lọc Đơn hàng{% endblock %}
+{% block page_heading %}Lọc Đơn hàng{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">🔍 Tìm kiếm & Lọc Đơn hàng</h2>
+        <p class="page-header-desc">Lọc đơn theo trạng thái, loại, ngày và tên khách hàng.</p>
+    </div>
+</div>
+
+<form method="GET" class="filter-panel">
+    <div class="filter-row">
+        <div class="filter-group">
+            <label>Trạng thái</label>
+            <select name="status">
+                <option value="">Tất cả</option>
+                {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Loại đơn</label>
+            <select name="order_type">
+                <option value="">Tất cả</option>
+                {% for val, label in type_choices %}
+                <option value="{{ val }}" {% if val == type_filter %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Từ ngày</label>
+            <input type="date" name="date_from" value="{{ date_from }}">
+        </div>
+        <div class="filter-group">
+            <label>Đến ngày</label>
+            <input type="date" name="date_to" value="{{ date_to }}">
+        </div>
+        <div class="filter-group">
+            <label>Tìm tên/SĐT</label>
+            <input type="text" name="search" value="{{ search }}" placeholder="Nguyễn Văn A...">
+        </div>
+        <button type="submit" class="btn-filter">🔍 Lọc</button>
+        <a href="{% url 'order_list_filtered' %}" class="btn-reset">↺ Reset</a>
+        <a href="{% url 'export_orders_excel' %}?status={{ status_filter }}&order_type={{ type_filter }}&date_from={{ date_from }}&date_to={{ date_to }}&search={{ search }}" class="btn btn-secondary" style="margin-left:8px;">📥 Xuất Excel</a>
+    </div>
+</form>
+
+<p class="result-count">Tìm thấy <strong>{{ total_count }}</strong> đơn hàng</p>
+
+<div class="section-box">
+<table class="o-table">
+    <thead>
+        <tr>
+            <th>#ID</th><th>Khách hàng</th><th>Loại</th><th>Tổng tiền</th>
+            <th>Trạng thái</th><th>Ngày tạo</th><th>Chi tiết</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for order in orders %}
+        <tr>
+            <td>#{{ order.id }}</td>
+            <td>{{ order.customer_name|default:"Khách vãng lai" }}<br><small>{{ order.customer_phone }}</small></td>
+            <td>{{ order.get_order_type_display }}</td>
+            <td>{{ order.total_price|vnd }}</td>
+            <td>
+                <span class="badge badge-{{ order.status }}">{{ order.get_status_display }}</span>
+            </td>
+            <td>{{ order.created_at|date:"d/m/Y H:i" }}</td>
+            <td>
+                <a href="{% url 'admin_order_detail' order.id %}" class="dash-link" title="Xem chi tiết">👁️</a>
+                {% if order.status != 'completed' and order.status != 'cancelled' %}
+                <a href="{% url 'order_edit' order.id %}" class="dash-link" title="Sửa đơn" style="margin-left:6px;">✏️</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted" style="padding:30px;">Không có đơn hàng nào</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

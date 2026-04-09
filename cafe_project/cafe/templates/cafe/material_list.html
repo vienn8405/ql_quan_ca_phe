@@ -1,0 +1,123 @@
+{% extends 'cafe/base.html' %}
+
+{% block title %}Kho nguyên vật liệu{% endblock %}
+{% block page_heading %}Kho nguyên vật liệu{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">Kho nguyên vật liệu</h2>
+        <p class="page-header-desc">Theo dõi tồn kho và cảnh báo mức thấp theo từng chi nhánh.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Quay lại Dashboard</a>
+        <a href="{% url 'import_materials_excel' %}{% if selected_branch %}?branch_id={{ selected_branch.id }}{% endif %}" class="btn btn-secondary">Nhập từ Excel</a>
+        <a href="{% url 'material_add' %}{% if selected_branch %}?branch_id={{ selected_branch.id }}{% endif %}" class="btn btn-primary">Thêm nguyên liệu</a>
+    </div>
+</div>
+
+<div class="section-box" style="margin-bottom:16px;">
+    <form method="get" class="admin-form-v3">
+        <div class="form-grid-v3">
+            <div class="form-group-v3">
+                <label>Chi nhánh</label>
+                <select name="branch_id">
+                    <option value="">Toàn hệ thống</option>
+                    {% for branch in branches %}
+                    <option value="{{ branch.id }}" {% if selected_branch and selected_branch.id == branch.id %}selected{% endif %}>
+                        {{ branch.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-action-row-v3">
+            <button type="submit" class="btn btn-primary">Lọc kho</button>
+            <a href="{% url 'material_list' %}" class="btn btn-secondary">Xóa bộ lọc</a>
+        </div>
+    </form>
+</div>
+
+<div class="section-box" style="margin-bottom:16px;">
+    {% if selected_branch %}
+    <p style="margin:0;">
+        Đang xem tồn kho nguyên liệu của chi nhánh <strong>{{ selected_branch.name }}</strong>.
+        Cảnh báo "Sắp hết" được tính theo mức tối thiểu của riêng chi nhánh này.
+    </p>
+    {% else %}
+    <p style="margin:0;">
+        Đang xem tồn kho <strong>tổng hợp toàn hệ thống</strong>.
+        Số lượng là tổng từ các chi nhánh đã tách kho, hoặc dữ liệu dùng chung cũ nếu nguyên liệu chưa được phân chi nhánh.
+    </p>
+    {% endif %}
+</div>
+
+{% if materials %}
+<div class="table-shell-v2 content-scroll-box scroll-box-lg">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nguyên liệu</th>
+                    <th>{% if selected_branch %}Số lượng chi nhánh{% else %}Số lượng tổng{% endif %}</th>
+                    <th>{% if selected_branch %}Mức tối thiểu chi nhánh{% else %}Mức tối thiểu hiển thị{% endif %}</th>
+                    <th>Đơn vị</th>
+                    <th>Trạng thái</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in materials %}
+                <tr>
+                    <td><strong>{{ m.name }}</strong></td>
+                    <td>{{ m.display_quantity|floatformat:-1 }}</td>
+                    <td>{{ m.display_min_quantity|floatformat:-1 }}</td>
+                    <td>
+                        {% if m.unit == 'g' %}g
+                        {% elif m.unit == 'ml' %}ml
+                        {% elif m.unit == 'item' %}cái
+                        {% else %}{{ m.unit }}{% endif %}
+                    </td>
+                    <td>
+                        {% if m.display_quantity <= 0 %}
+                            <span class="badge badge-red">Hết hàng</span>
+                        {% elif m.display_quantity <= m.display_min_quantity %}
+                            <span class="badge badge-orange">Sắp hết hàng</span>
+                        {% else %}
+                            <span class="badge badge-green">Còn hàng</span>
+                        {% endif %}
+                        {% if m.display_min_quantity > 0 %}
+                        <div class="stock-bar">
+                            {% if m.display_quantity <= 0 %}
+                                <div class="stock-bar-fill danger"></div>
+                            {% elif m.display_quantity >= m.display_min_quantity %}
+                                <div class="stock-bar-fill ok"></div>
+                            {% else %}
+                                <div class="stock-bar-fill warning" style="width:{% widthratio m.display_quantity m.display_min_quantity 100 %}%;"></div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="table-action-wrap">
+                            <a href="{% url 'material_edit' m.id %}{% if selected_branch %}?branch_id={{ selected_branch.id }}{% endif %}" class="table-action-link">Sửa</a>
+                            <a href="{% url 'material_delete' m.id %}" class="table-action-link danger"
+                               onclick="return confirm('Bạn có chắc muốn xóa nguyên liệu này không?')">
+                                Xóa
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state-box">
+    <div class="empty-icon">🧪</div>
+    <h3>Chưa có nguyên liệu</h3>
+    <p>Hãy thêm nguyên liệu để hệ thống có thể theo dõi kho và công thức pha chế.</p>
+</div>
+{% endif %}
+{% endblock %}

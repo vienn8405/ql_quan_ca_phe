@@ -1,0 +1,227 @@
+{% extends 'cafe/base.html' %}
+{% load currency_filters %}
+
+{% block title %}Đơn hàng{% endblock %}
+{% block page_heading %}Thông tin đơn hàng{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">📋 Theo dõi đơn hàng của bạn</h2>
+        <p class="page-header-desc">
+            Xem trạng thái hiện tại của đơn hàng sau khi bạn đặt món.
+        </p>
+    </div>
+</div>
+
+{% if order %}
+<div class="order-detail-card">
+    <!-- ══════ HEADER + STATUS ══════ -->
+    <div class="order-summary-head">
+        <div>
+            <span class="summary-kicker">Order Tracking</span>
+            <h3>Đơn hàng #{{ order.id }}</h3>
+        </div>
+
+        <div>
+            {% if order.status == 'pending' %}
+    <span class="badge badge-orange">⏳ Chờ xử lý</span>
+{% elif order.status == 'confirmed' %}
+    <span class="badge badge-orange">📌 Đã xác nhận</span>
+{% elif order.status == 'preparing' %}
+    <span class="badge badge-orange">👨‍🍳 Đang pha chế</span>
+{% elif order.status == 'delivering' %}
+    <span class="badge badge-orange">🚚 Đang giao</span>
+{% elif order.status == 'completed' %}
+    <span class="badge badge-green">✅ Hoàn tất</span>
+{% elif order.status == 'cancelled' %}
+    <span class="badge badge-red">❌ Đã hủy</span>
+{% else %}
+    <span class="badge badge-orange">{{ order.get_status_display }}</span>
+{% endif %}
+        </div>
+    </div>
+
+    <!-- ══════ QR PAYMENT (nếu cần) ══════ -->
+    <div class="order-info-grid">
+        {% if order.payment_method == 'bank' and not order.is_paid and order.status != 'cancelled' %}
+        <div class="od-qr-panel">
+            {% if reservation %}
+                <h3>💳 Vui lòng Thanh toán Cọc (30%)</h3>
+                <p>Vui lòng chuyển khoản tiền cọc để giữ bàn số {{ reservation.table.number|default:"..." }}.</p>
+                
+                <img src="https://img.vietqr.io/image/970422-0909123456-compact.png?amount={{ reservation.deposit_amount }}&addInfo=Coc ban {{ reservation.id }} don {{ order.id }}&accountName=CAFE FLOW" 
+                     alt="QR Code Đặt Cọc" class="od-qr-img">
+                     
+                <div class="od-bank-info">
+                    <div class="od-bank-row"><b>Ngân hàng:</b> MB Bank</div>
+                    <div class="od-bank-row"><b>Số tài khoản:</b> <span class="accent">0909123456</span></div>
+                    <div class="od-bank-row"><b>Người thụ hưởng:</b> CAFE FLOW</div>
+                    <div class="od-bank-row"><b>Tiền cọc cần thu:</b> <strong class="price">{{ reservation.deposit_amount|vnd }}</strong></div>
+                    <div class="od-bank-row"><b>Nội dung CK:</b> <strong class="ref">Coc ban {{ reservation.id }} don {{ order.id }}</strong></div>
+                </div>
+            {% else %}
+                <h3>💳 Hướng dẫn Thanh toán Chuyển khoản</h3>
+                <p>Vui lòng quét mã QR dưới đây hoặc chuyển giao qua thông tin thụ hưởng để hoàn tất đơn hàng.</p>
+                
+                <img src="https://img.vietqr.io/image/970422-0909123456-compact.png?amount={{ order.total_price }}&addInfo=Thanh toan don hang {{ order.id }}&accountName=CAFE FLOW" 
+                     alt="QR Code Thanh Toán" class="od-qr-img">
+                     
+                <div class="od-bank-info">
+                    <div class="od-bank-row"><b>Ngân hàng:</b> MB Bank</div>
+                    <div class="od-bank-row"><b>Số tài khoản:</b> <span class="accent">0909123456</span></div>
+                    <div class="od-bank-row"><b>Chủ tk:</b> CAFE FLOW</div>
+                    <div class="od-bank-row"><b>Số tiền:</b> <strong class="price">{{ order.total_price|vnd }}</strong></div>
+                    <div class="od-bank-row"><b>Nội dung CK:</b> <strong class="ref">Thanh toan don hang {{ order.id }}</strong></div>
+                </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    <!-- ══════ ORDER INFO GRID ══════ -->
+    <div class="info-box-v2">
+        <span>Mã đơn</span>
+        <strong>#{{ order.id }}</strong>
+    </div>
+
+    <div class="info-box-v2">
+        <span>Thanh toán</span>
+        <strong>
+            {{ order.get_payment_method_display }}
+            {% if order.payment_method == 'bank' %}
+                {% if order.is_paid %}
+                    <br><span class="pay-status-ok">✅ Đã nhận tiền</span>
+                {% else %}
+                    <br><span class="pay-status-wait">⏳ Chờ thanh toán</span>
+                {% endif %}
+            {% endif %}
+        </strong>
+    </div>
+
+    <div class="info-box-v2">
+        <span>Loại đơn</span>
+        <strong>{{ order.get_order_type_display }}</strong>
+    </div>
+
+    <div class="info-box-v2">
+        <span>Chi nhánh xử lý</span>
+        <strong>
+            {% if order.branch %}
+                {{ order.branch.name }}
+            {% else %}
+                Chưa gán
+            {% endif %}
+        </strong>
+    </div>
+
+    <div class="info-box-v2">
+        <span>Trạng thái giao hàng</span>
+        <strong>{{ order.get_delivery_status_display }}</strong>
+    </div>
+
+    <div class="info-box-v2">
+        <span>Phí giao hàng</span>
+        <strong>{{ order.delivery_fee|vnd }}</strong>
+    </div>
+
+    <div class="info-box-v2">
+        <span>Khoảng cách giao</span>
+        <strong>{{ order.delivery_distance|floatformat:1 }} m</strong>
+    </div>
+
+    <div class="info-box-v2 total-highlight">
+        <span>Tổng tiền</span>
+        <strong>{{ order.total_price|vnd }}</strong>
+    </div>
+
+    <div class="info-box-v2">
+        <span>Ngày tạo</span>
+        <strong>{{ order.created_at }}</strong>
+    </div>
+</div>
+
+<!-- ══════ THÔNG TIN KHÁCH HÀNG ══════ -->
+<div class="od-section">
+    <h4 class="od-section-title"><span class="icon">👤</span> Thông tin khách hàng</h4>
+    <div class="table-wrap">
+        <table>
+            <tbody>
+                <tr>
+                    <th>Tên khách hàng</th>
+                    <td>{{ order.customer_name|default:"Không có" }}</td>
+                </tr>
+                <tr>
+                    <th>Số điện thoại</th>
+                    <td>{{ order.customer_phone|default:"Không có" }}</td>
+                </tr>
+                <tr>
+                    <th>Địa chỉ</th>
+                    <td>{{ order.customer_address|default:"Không có" }}</td>
+                </tr>
+                <tr>
+                    <th>Ghi chú</th>
+                    <td>{{ order.note|default:"Không có" }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ══════ DANH SÁCH MÓN ══════ -->
+    {% if items %}
+<div class="od-section">
+    <h4 class="od-section-title"><span class="icon">☕</span> Chi tiết món đã đặt</h4>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Sản phẩm</th>
+                    <th>Số lượng</th>
+                    <th>Giá</th>
+                    <th>Thành tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.product.name }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.price|vnd }}</td>
+                    <td>
+                        {% widthratio item.quantity 1 item.price as subtotal %}{{ subtotal|vnd }}
+                        {% if order.status == 'completed' %}
+                            <br>
+                            <a href="{% url 'submit_review' order.id item.product.id %}" class="dash-link review-link">⭐ Đánh giá món</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ══════ HÀNH ĐỘNG ══════ -->
+    <div class="order-action-row d-flex gap-md mt-lg">
+        <a href="{% url 'user_menu' %}" class="btn btn-secondary">📋 Quay lại menu</a>
+
+        {% if order.status == 'pending' %}
+            <form method="post" action="{% url 'cancel_order' order.id %}" class="m-0">
+                {% csrf_token %}
+                <button type="submit" class="btn-cancel" onclick="return confirm('Bạn chắc chắn muốn huỷ đơn hàng này?');">Hủy đơn</button>
+            </form>
+        {% elif order.status == 'completed' %}
+            <span class="od-complete-msg">✅ Đơn hàng đã hoàn thành</span>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="empty-state-box">
+    <div class="empty-icon">📦</div>
+    <h3>Chưa có đơn hàng</h3>
+    <p>Bạn chưa đặt đơn nào trong hệ thống.</p>
+    <a href="{% url 'user_menu' %}" class="btn btn-primary">📋 Đi đến menu</a>
+</div>
+{% endif %}
+{% endblock %}

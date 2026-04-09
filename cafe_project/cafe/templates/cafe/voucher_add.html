@@ -1,0 +1,73 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Tạo Voucher{% endblock %}
+{% block page_heading %}Tạo Voucher{% endblock %}
+
+{% block content %}
+<div class="widget-card form-mid">
+    <div class="widget-header">
+        <h3 class="widget-header-title">🎟️ Tạo Voucher mới</h3>
+    </div>
+    <div class="widget-body">
+        <form method="POST">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Mã Voucher *</label>
+                <input type="text" name="code" class="form-control text-upper" placeholder="VD: GIAM10, WELCOME50..." required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Chi nhánh áp dụng</label>
+                <select name="branch_id" class="form-control">
+                    <option value="">-- Tự do (Toàn hệ thống) --</option>
+                    {% for b in branches %}
+                        <option value="{{ b.id }}">{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+                <small class="form-hint">Nếu chọn, khách hàng chỉ xài được khi đặt tại chi nhánh này.</small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mô tả</label>
+                <input type="text" name="description" class="form-control" placeholder="Giảm 10% cho đơn từ 50k...">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Loại giảm giá *</label>
+                <select name="discount_type" class="form-control" id="discountType" onchange="updateLabel()">
+                    <option value="percent">Phần trăm (%)</option>
+                    <option value="fixed">Số tiền cố định (VNĐ)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" id="discountLabel">Giá trị giảm (%) *</label>
+                <input type="number" name="discount_value" class="form-control" placeholder="10" min="0" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Đơn hàng tối thiểu (đ)</label>
+                    <input type="number" name="min_order_value" class="form-control" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tổng lượt dùng tối đa</label>
+                    <input type="number" name="max_uses" class="form-control" value="100" min="1">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Ngày hết hạn (để trống = không hết hạn)</label>
+                <input type="datetime-local" name="expired_at" class="form-control">
+            </div>
+            <div class="checkbox-inline">
+                <input type="checkbox" name="is_active" id="isActive" checked class="w-auto">
+                <label for="isActive" class="m-0">Kích hoạt ngay</label>
+            </div>
+            <div class="gap-row" style="margin-top:8px;">
+                <button type="submit" class="btn btn-primary">💾 Tạo Voucher</button>
+                <a href="{% url 'voucher_list' %}" class="btn btn-outline">Hủy</a>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+function updateLabel(){
+    const type = document.getElementById('discountType').value;
+    document.getElementById('discountLabel').textContent = type === 'percent' ? 'Giá trị giảm (%) *' : 'Số tiền giảm (đ) *';
+}
+</script>
+{% endblock %}

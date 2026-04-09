@@ -1,0 +1,190 @@
+{% extends 'cafe/base.html' %}
+
+{% block title %}Sửa chi nhánh{% endblock %}
+{% block page_heading %}Sửa chi nhánh{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+{% endblock %}
+
+{% block content %}
+<div class="form-page-wrap">
+    <div class="form-card-v3">
+        <div class="form-card-head">
+            <span class="summary-kicker">Branch Update</span>
+            <h2>Cập nhật chi nhánh</h2>
+            <p>Chỉnh sửa thông tin và điều chỉnh vị trí chi nhánh trực quan trên bản đồ.</p>
+        </div>
+
+        <form method="post" class="admin-form-v3" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="form-grid-v3">
+                <div class="form-group-v3">
+                    <label>Tên chi nhánh</label>
+                    <input type="text" name="name" value="{{ branch.name }}" required>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Số điện thoại</label>
+                    <input type="text" name="phone" value="{{ branch.phone }}">
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Giờ mở cửa</label>
+                    <input type="text" name="open_time" value="{{ branch.open_time }}" placeholder="Ví dụ: 7:00 - 22:00">
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Bán kính giao hàng (mét)</label>
+                    <input type="number" name="delivery_radius" value="{{ branch.delivery_radius }}" min="0">
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Ảnh quán</label>
+                    <input type="file" name="image" accept="image/*">
+                    {% if branch.image %}
+                        <div class="form-image-preview">
+                            <img src="{{ branch.image.url }}" width="120">
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Trạng thái hoạt động</label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="is_active" {% if branch.is_active %}checked{% endif %}>
+                        Đang hoạt động
+                    </label>
+                </div>
+
+                <div class="form-group-v3 grid-full">
+                    <label>Mô tả chi nhánh</label>
+                    <textarea name="description" rows="2">{{ branch.description }}</textarea>
+                </div>
+            </div>
+
+            <div class="mt-md">
+                <label class="map-section-label">Vị trí trên bản đồ</label>
+                <div class="map-tip">
+                    <span>Kéo marker hoặc click trên bản đồ để chọn tọa độ.</span>
+                </div>
+                <div id="branch-map"></div>
+
+                <div class="form-group-v3 grid-full mb-sm">
+                    <label>Địa chỉ</label>
+                    <input type="text" name="address" id="map-address" value="{{ branch.address }}" required>
+                </div>
+
+                <div class="coord-display">
+                    <div class="form-group-v3">
+                        <label>Vĩ độ (Latitude)</label>
+                        <input type="text" name="latitude" id="map-lat" value="{{ latitude }}" required>
+                    </div>
+                    <div class="form-group-v3">
+                        <label>Kinh độ (Longitude)</label>
+                        <input type="text" name="longitude" id="map-lng" value="{{ longitude }}" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-action-row-v3">
+                <button type="submit" class="btn btn-primary">Cập nhật chi nhánh</button>
+                <a href="{% url 'branch_list' %}" class="btn btn-secondary">← Danh sách chi nhánh</a>
+                <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Về Dashboard</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script>
+    const initLat = parseFloat("{{ latitude }}") || 10.7769;
+    const initLng = parseFloat("{{ longitude }}") || 106.7009;
+    const latInput = document.getElementById('map-lat');
+    const lngInput = document.getElementById('map-lng');
+    const addressInput = document.getElementById('map-address');
+
+    const map = L.map('branch-map').setView([initLat, initLng], 15);
+
+    L.tileLayer('http://mt0.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        attribution: '&copy; Google Maps'
+    }).addTo(map);
+
+    const marker = L.marker([initLat, initLng], { draggable: true }).addTo(map);
+
+    function updateInputs(latlng) {
+        latInput.value = latlng.lat.toFixed(7);
+        lngInput.value = latlng.lng.toFixed(7);
+    }
+
+    function setMarkerPosition(latlng, shouldReverseGeocode = true) {
+        marker.setLatLng(latlng);
+        updateInputs(latlng);
+        if (shouldReverseGeocode) reverseGeocode(latlng);
+    }
+
+    function reverseGeocode(latlng) {
+        const url = `https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&format=json&accept-language=vi&addressdetails=1`;
+        fetch(url, { headers: { 'Accept-Language': 'vi' } })
+            .then(r => r.json())
+            .then(data => {
+                if (data && data.address) {
+                    const a = data.address;
+                    const parts = [];
+                    if (a.house_number) parts.push(a.house_number);
+                    if (a.road) parts.push(a.road);
+                    if (a.suburb || a.neighbourhood || a.quarter) parts.push(a.suburb || a.neighbourhood || a.quarter);
+                    if (a.city_district) parts.push(a.city_district);
+                    if (a.municipality) parts.push(a.municipality);
+                    else if (a.state) parts.push(a.state);
+                    addressInput.value = parts.length > 0 ? parts.join(', ') : (data.display_name || addressInput.value);
+                }
+            })
+            .catch(() => {});
+    }
+
+    function syncMarkerFromInputs() {
+        const lat = parseFloat(latInput.value);
+        const lng = parseFloat(lngInput.value);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+        const latlng = L.latLng(lat, lng);
+        marker.setLatLng(latlng);
+        map.panTo(latlng);
+    }
+
+    marker.on('dragend', function() {
+        setMarkerPosition(marker.getLatLng());
+    });
+
+    map.on('click', function(e) {
+        setMarkerPosition(e.latlng);
+    });
+
+    latInput.addEventListener('change', syncMarkerFromInputs);
+    lngInput.addEventListener('change', syncMarkerFromInputs);
+    latInput.addEventListener('input', syncMarkerFromInputs);
+    lngInput.addEventListener('input', syncMarkerFromInputs);
+
+    L.Control.geocoder({
+        defaultMarkGeocode: false,
+        placeholder: 'Tìm địa điểm...',
+        geocoder: L.Control.Geocoder.nominatim({
+            geocodingQueryParams: { countrycodes: 'vn' }
+        })
+    }).on('markgeocode', function(e) {
+        const latlng = e.geocode.center;
+        map.setView(latlng, 16);
+        setMarkerPosition(latlng, false);
+        if (!addressInput.value || addressInput.value.trim() === '') {
+            addressInput.value = e.geocode.name || '';
+        }
+    }).addTo(map);
+
+    updateInputs(marker.getLatLng());
+</script>
+{% endblock %}

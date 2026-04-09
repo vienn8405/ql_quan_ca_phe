@@ -1,0 +1,230 @@
+{% extends 'cafe/base.html' %}
+{% load humanize %}
+{% load currency_filters %}
+{% block title %}Chi tiết đơn #{{ order.id }}{% endblock %}
+{% block page_heading %}Chi tiết đơn hàng{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">Đơn hàng #{{ order.id }}</h2>
+        <p class="page-header-desc">Chi tiết toàn bộ thông tin của đơn hàng này.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'order_list_filtered' %}" class="btn btn-secondary">← Quay lại lọc đơn</a>
+        <a href="{% url 'order_list' %}" class="btn btn-secondary">Danh sách đơn</a>
+        <a href="{% url 'export_order_pdf' order.id %}" class="btn btn-secondary">Xuất PDF</a>
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Dashboard</a>
+    </div>
+</div>
+
+<div class="section-box">
+    <h4>Trạng thái đơn</h4>
+    <div class="d-flex gap-md flex-wrap items-center">
+        <div>
+            Trạng thái xử lý:&nbsp;
+            <span class="badge badge-{{ order.status }}">{{ order.get_status_display }}</span>
+        </div>
+        {% if order.order_type == 'delivery' %}
+        <div>
+            Trạng thái giao hàng:&nbsp;
+            <span class="badge
+                {% if order.delivery_status == 'delivered' %}badge-completed
+                {% elif order.delivery_status == 'failed' %}badge-cancelled
+                {% elif order.delivery_status == 'shipping' %}badge-confirmed
+                {% else %}badge-pending{% endif %}">
+                {{ order.get_delivery_status_display }}
+            </span>
+        </div>
+        {% if order.assigned_shipper %}
+        <div>
+            Shipper phụ trách:&nbsp;<strong>{{ order.assigned_shipper.username }}</strong>
+        </div>
+        {% endif %}
+        {% endif %}
+        <div>
+            Loại đơn:&nbsp;<strong>{{ order.get_order_type_display }}</strong>
+        </div>
+        <div>
+            Ngày đặt:&nbsp;<strong>{{ order.created_at|date:"d/m/Y H:i" }}</strong>
+        </div>
+    </div>
+
+    {% if order.order_type == 'delivery' %}
+    <div class="detail-grid mt-md">
+        {% if order.assigned_at %}
+        <div class="detail-box">
+            <label>Được gán lúc</label>
+            <strong>{{ order.assigned_at|date:"d/m/Y H:i" }}</strong>
+        </div>
+        {% endif %}
+        {% if order.accepted_at %}
+        <div class="detail-box">
+            <label>Shipper nhận đơn</label>
+            <strong>{{ order.accepted_at|date:"d/m/Y H:i" }}</strong>
+        </div>
+        {% endif %}
+        {% if order.started_delivery_at %}
+        <div class="detail-box">
+            <label>Bắt đầu giao</label>
+            <strong>{{ order.started_delivery_at|date:"d/m/Y H:i" }}</strong>
+        </div>
+        {% endif %}
+        {% if order.delivered_at %}
+        <div class="detail-box">
+            <label>Giao xong lúc</label>
+            <strong>{{ order.delivered_at|date:"d/m/Y H:i" }}</strong>
+        </div>
+        {% endif %}
+        {% if order.failed_at %}
+        <div class="detail-box grid-full">
+            <label>Giao thất bại / cần điều phối lại</label>
+            <strong>{{ order.failed_at|date:"d/m/Y H:i" }}{% if order.failure_reason %} - {{ order.failure_reason }}{% endif %}</strong>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if order.status != 'completed' and order.status != 'cancelled' %}
+    <div class="action-bar">
+        {% if order.status == 'pending' %}
+            <a href="{% url 'order_update_status' order.id 'confirmed' %}" class="btn btn-primary">Xác nhận</a>
+            <a href="{% url 'order_update_status' order.id 'cancelled' %}" class="btn btn-outline text-danger">Hủy đơn</a>
+        {% elif order.status == 'confirmed' %}
+            <a href="{% url 'order_update_status' order.id 'preparing' %}" class="btn btn-primary">Bắt đầu pha chế</a>
+            <a href="{% url 'order_update_status' order.id 'cancelled' %}" class="btn btn-outline text-danger">Hủy đơn</a>
+        {% elif order.status == 'preparing' %}
+            {% if order.order_type == 'delivery' %}
+                <span class="badge badge-light">Đơn delivery sẽ được điều phối tại màn hình Logistics</span>
+            {% else %}
+                <a href="{% url 'order_update_status' order.id 'completed' %}" class="btn btn-primary">Hoàn tất</a>
+            {% endif %}
+            <a href="{% url 'order_update_status' order.id 'cancelled' %}" class="btn btn-outline text-danger">Hủy đơn</a>
+        {% elif order.status == 'delivering' %}
+            {% if order.order_type == 'delivery' %}
+                <a href="{% url 'admin_deliveries' %}" class="btn btn-secondary">Đi tới Logistics</a>
+            {% else %}
+                <a href="{% url 'order_update_status' order.id 'completed' %}" class="btn btn-primary">Giao thành công</a>
+                <a href="{% url 'order_update_status' order.id 'cancelled' %}" class="btn btn-outline text-danger">Giao thất bại</a>
+            {% endif %}
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if order.payment_method == 'bank' and not order.is_paid and order.status != 'cancelled' %}
+    <div class="action-bar action-bar-sep">
+        <a href="{% url 'order_mark_paid' order.id %}" class="btn btn-success" onclick="return confirm('Xác nhận đã nhận chuyển khoản từ khách hàng này?');">Duyệt đã nhận tiền</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="section-box">
+    <h4>Thông tin khách hàng</h4>
+    <div class="detail-grid">
+        <div class="detail-box">
+            <label>Tên khách</label>
+            <strong>{{ order.customer_name|default:"Khách vãng lai" }}</strong>
+        </div>
+        <div class="detail-box">
+            <label>Số điện thoại</label>
+            <strong>{{ order.customer_phone|default:"Không có" }}</strong>
+        </div>
+        <div class="detail-box grid-full">
+            <label>Địa chỉ giao hàng</label>
+            <strong>{{ order.customer_address|default:"Không có" }}</strong>
+        </div>
+        {% if order.note %}
+        <div class="detail-box grid-full">
+            <label>Ghi chú</label>
+            <strong>{{ order.note }}</strong>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="section-box">
+    <h4>Thông tin thanh toán</h4>
+    <div class="detail-grid">
+        <div class="detail-box">
+            <label>Chi nhánh xử lý</label>
+            <strong>{% if order.branch %}{{ order.branch.name }}{% else %}Chưa gán{% endif %}</strong>
+        </div>
+        {% if order.table %}
+        <div class="detail-box">
+            <label>Bàn</label>
+            <strong>{{ order.table }}</strong>
+        </div>
+        {% endif %}
+        <div class="detail-box">
+            <label>Hình thức thanh toán</label>
+            <strong>
+                {{ order.get_payment_method_display }}
+                {% if order.payment_method == 'bank' %}
+                    {% if order.is_paid %}
+                        <br><span class="text-success text-xs">Đã nhận tiền</span>
+                    {% else %}
+                        <br><span class="text-danger text-xs">Chờ khách chuyển khoản</span>
+                    {% endif %}
+                {% endif %}
+            </strong>
+        </div>
+        <div class="detail-box">
+            <label>Phí giao hàng</label>
+            <strong>{{ order.delivery_fee|vnd }}</strong>
+        </div>
+        {% if order.delivery_distance > 0 %}
+        <div class="detail-box">
+            <label>Khoảng cách giao</label>
+            <strong>{{ order.delivery_distance|floatformat:0 }} m</strong>
+        </div>
+        {% endif %}
+        {% if order.discount_amount > 0 %}
+        <div class="detail-box">
+            <label>Giảm giá (Voucher)</label>
+            <strong class="text-danger">-{{ order.discount_amount|vnd }}</strong>
+        </div>
+        {% endif %}
+        <div class="detail-box detail-box-highlight">
+            <label>Tổng tiền</label>
+            <strong class="text-coffee text-lg">{{ order.total_price|vnd }}</strong>
+        </div>
+    </div>
+
+    {% if order.voucher %}
+    <div class="voucher-box mt-md">
+        Đã áp dụng voucher: <strong>{{ order.voucher.code }}</strong>
+        - Giảm {{ order.voucher.get_discount_type_display }}
+        {% if order.voucher.discount_type == 'percent' %}{{ order.voucher.discount_value }}%{% else %}{{ order.voucher.discount_value|vnd }}{% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="section-box">
+    <h4>Món đã đặt</h4>
+    {% if items %}
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th>Sản phẩm</th>
+                <th>Số lượng</th>
+                <th>Đơn giá</th>
+                <th>Thành tiền</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td><strong>{{ item.product.name }}</strong></td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.price|vnd }}</td>
+                <td><strong class="text-coffee">{% widthratio item.quantity 1 item.price as subtotal %}{{ subtotal|vnd }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">Không có món nào.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

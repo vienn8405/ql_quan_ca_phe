@@ -1,0 +1,57 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Trạng thái Đặt bàn - CafeFlow{% endblock %}
+{% block page_heading %}Tra cứu Đặt Bàn{% endblock %}
+
+{% block content %}
+
+<div class="lookup-container">
+    <h2>Tra cứu Trạng thái Đặt bàn ☕</h2>
+    <p class="lookup-hint">Bạn có thể kiểm tra danh sách bàn đã đặt bằng cách điền Số Điện Thoại.</p>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-success mt-md">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form class="search-form" method="GET">
+        <input type="text" name="phone" placeholder="Nhập Số điện thoại của bạn..." value="{{ phone }}" required>
+        <button type="submit" class="btn-search">🔍 Tra Cứu</button>
+    </form>
+
+    {% if phone %}
+        <div class="reservation-list">
+            <h4>Kết quả tìm kiếm cho SĐT "{{ phone }}":</h4>
+            
+            {% if not reservations %}
+                <div class="res-empty">
+                    Không tìm thấy lịch đặt bàn nào phù hợp với SĐT trên.
+                </div>
+            {% else %}
+                {% for res in reservations %}
+                    <div class="res-card">
+                        <div class="res-card-header">
+                            <div class="res-date">📅 {{ res.date|date:"d/m/Y" }} lúc {{ res.time|time:"H:i" }}</div>
+                            <span class="res-status status-{{ res.status }}">{{ res.get_status_display }}</span>
+                        </div>
+                        <div class="res-detail">📍 Chi nhánh: <strong>{{ res.branch.name|default:"Chưa rõ" }}</strong></div>
+                        <div class="res-detail">🪑 Vị trí Bàn: <strong>Bàn {{ res.table.number|default:"Đang xếp" }}</strong></div>
+                        <div class="res-detail">👥 Số lượng khách: <strong>{{ res.guests }} người</strong></div>
+                        <div class="res-detail">💳 Hình thức đặt chỗ: <strong>{% if res.is_preordered %}Đặt món trước / có đặt cọc{% else %}Chỉ giữ bàn{% endif %}</strong></div>
+                        {% if res.hold_expires_at and res.status == 'pending' %}
+                        <div class="res-detail">⏰ Giữ bàn đến: <strong>{{ res.hold_expires_at|date:"H:i d/m/Y" }}</strong></div>
+                        {% elif res.hold_expires_at and res.status == 'confirmed' %}
+                        <div class="res-detail">⏰ Giữ bàn đến: <strong>{{ res.hold_expires_at|date:"H:i d/m/Y" }}</strong></div>
+                        {% endif %}
+                        {% if res.note %}
+                        <div class="res-note">📝 Lời nhắn: {{ res.note }}</div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

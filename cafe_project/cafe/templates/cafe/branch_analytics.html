@@ -1,0 +1,254 @@
+{% extends 'cafe/base.html' %}
+{% load static %}
+{% block title %}Phân tích GIS theo chi nhánh{% endblock %}
+{% block page_heading %}Phân tích chi nhánh{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">🗺️ Phân tích GIS theo chi nhánh</h2>
+        <p class="page-header-desc">Bản đồ doanh thu, đơn hàng, vùng giao hàng theo từng chi nhánh.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Dashboard</a>
+        <select id="mapMode" onchange="renderBranchMap()" class="analytics-mode-select">
+            <option value="revenue">📊 Theo doanh thu</option>
+            <option value="orders">📦 Theo số đơn</option>
+            <option value="delivery">🛵 Theo đơn delivery</option>
+        </select>
+    </div>
+</div>
+
+<div class="analytics-layout">
+    <!-- BẢN ĐỒ -->
+    <div class="analytics-map-wrap">
+        <div class="analytics-map-card">
+            <div id="analytics-map"></div>
+            <div id="map-legend" class="analytics-legend">
+                ⏳ Đang tải dữ liệu...
+            </div>
+        </div>
+    </div>
+
+    <!-- SIDEBAR THỐNG KÊ -->
+    <div class="analytics-sidebar">
+        <!-- Cards tổng -->
+        <div id="summary-cards" class="analytics-stats">
+            <div class="stat-card">
+                <div class="stat-card-label">🏬 Tổng chi nhánh</div>
+                <div id="stat-branches" class="stat-card-value">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-label">💰 Tổng doanh thu</div>
+                <div id="stat-revenue" class="stat-card-value text-success">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-label">📦 Tổng đơn hàng</div>
+                <div id="stat-orders" class="stat-card-value text-blue">-</div>
+            </div>
+        </div>
+
+        <!-- Bảng xếp hạng -->
+        <div class="widget-card flex-1">
+            <div class="widget-header">
+                <h4 class="widget-header-title">🏆 Xếp hạng chi nhánh</h4>
+            </div>
+            <div class="widget-body analytics-ranking">
+                <div id="ranking-list">Đang tải...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+// ==================== BRANCH ANALYTICS MAP ====================
+const map = L.map('analytics-map').setView([10.762622, 106.660172], 12);
+L.tileLayer('http://mt0.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}', {
+    maxZoom: 19, attribution: '&copy; Google Maps'
+}).addTo(map);
+
+let branchData = [];
+let markers = [];
+let circles = [];
+
+// Bảng màu gradient
+function getColor(value, max) {
+    if (max === 0) return '#7b4b2a';
+    const ratio = Math.min(value / max, 1);
+    // Xanh → Vàng → Đỏ
+    const r = Math.round(255 * ratio);
+    const g = Math.round(255 * (1 - ratio * 0.6));
+    const b = Math.round(80 * (1 - ratio));
+    return `rgb(${r},${g},${b})`;
+}
+
+function getRadius(value, max) {
+    if (max === 0) return 12;
+    return 10 + Math.round((value / max) * 25);
+}
+
+function formatCurrency(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'tr';
+    if (n >= 1000) return (n / 1000).toFixed(0) + 'k';
+    return n.toLocaleString('vi-VN');
+}
+
+function loadData() {
+    fetch("{% url 'api_branch_analytics' %}")
+        .then(r => r.json())
+        .then(data => {
+            branchData = data.branches;
+            document.getElementById('map-legend').innerHTML =
+                `📅 Ngày báo cáo: <b>${data.report_date}</b> | ${branchData.length} chi nhánh`;
+
+            // Cập nhật summary
+            const totalRev = branchData.reduce((s, b) => s + b.total_revenue, 0);
+            const totalOrd = branchData.reduce((s, b) => s + b.total_orders, 0);
+            document.getElementById('stat-branches').textContent = branchData.length;
+            document.getElementById('stat-revenue').textContent = formatCurrency(totalRev) + 'đ';
+            document.getElementById('stat-orders').textContent = totalOrd;
+
+            renderBranchMap();
+            renderRanking();
+        })
+        .catch(err => {
+            document.getElementById('map-legend').innerHTML = '⚠️ Lỗi tải dữ liệu!';
+        });
+}
+
+function renderBranchMap() {
+    // Xóa markers/circles cũ
+    markers.forEach(m => map.removeLayer(m));
+    circles.forEach(c => map.removeLayer(c));
+    markers = [];
+    circles = [];
+
+    const mode = document.getElementById('mapMode').value;
+    let maxVal = 0;
+
+    branchData.forEach(b => {
+        const val = mode === 'revenue' ? b.total_revenue :
+                    mode === 'orders' ? b.total_orders : b.delivery_orders;
+        if (val > maxVal) maxVal = val;
+    });
+
+    const bounds = [];
+
+    branchData.forEach(b => {
+        const val = mode === 'revenue' ? b.total_revenue :
+                    mode === 'orders' ? b.total_orders : b.delivery_orders;
+
+        const color = getColor(val, maxVal);
+        const radius = getRadius(val, maxVal);
+
+        // Circle marker (kích thước theo giá trị)
+        const marker = L.circleMarker([b.lat, b.lng], {
+            radius: radius,
+            fillColor: color,
+            fillOpacity: 0.75,
+            color: '#fff',
+            weight: 2,
+        }).addTo(map);
+
+        // Label trên marker
+        const labelVal = mode === 'revenue' ? formatCurrency(b.total_revenue) + 'đ' :
+                         mode === 'orders' ? b.total_orders + ' đơn' :
+                         b.delivery_orders + ' 🛵';
+
+        marker.bindTooltip(
+            `<b>${b.name}</b><br>${labelVal}`,
+            {permanent: true, direction: 'top', offset: [0, -radius], className: 'branch-label'}
+        );
+
+        // Popup chi tiết — SaaS styled
+        marker.bindPopup(`
+            <div class="popup-card">
+                <div class="popup-card-title">☕ ${b.name}</div>
+                <div class="popup-card-row">📍 ${b.address}</div>
+                ${b.phone ? `<div class="popup-card-row">📱 ${b.phone}</div>` : ''}
+                <hr class="popup-card-divider">
+                <div class="popup-card-row">💰 Doanh thu tổng: <b>${b.total_revenue.toLocaleString('vi-VN')}đ</b></div>
+                <div class="popup-card-row">📅 DT tháng này: <b>${b.month_revenue.toLocaleString('vi-VN')}đ</b></div>
+                <div class="popup-card-row">📦 Tổng đơn: <b>${b.total_orders}</b> (Hôm nay: ${b.today_orders})</div>
+                <div class="popup-card-row">🛵 Đơn delivery: <b>${b.delivery_orders}</b></div>
+                ${b.avg_rating ? `<div class="popup-card-row">⭐ Đánh giá: <b>${b.avg_rating}/5</b></div>` : ''}
+                <div class="popup-card-row">📏 Bán kính giao: <b>${b.delivery_radius}m</b></div>
+            </div>
+        `);
+
+        markers.push(marker);
+        bounds.push([b.lat, b.lng]);
+
+        // Vùng giao hàng (nhạt)
+        if (mode === 'delivery') {
+            const circle = L.circle([b.lat, b.lng], {
+                radius: b.delivery_radius,
+                color: color,
+                weight: 1,
+                fillColor: color,
+                fillOpacity: 0.08,
+                dashArray: '5,5'
+            }).addTo(map);
+            circles.push(circle);
+        }
+    });
+
+    if (bounds.length > 0) {
+        map.fitBounds(bounds, {padding: [40, 40]});
+    }
+}
+
+function renderRanking() {
+    const sorted = [...branchData].sort((a, b) => b.total_revenue - a.total_revenue);
+    const el = document.getElementById('ranking-list');
+
+    if (sorted.length === 0) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><p class="empty-state-desc">Chưa có dữ liệu.</p></div>';
+        return;
+    }
+
+    const maxRev = sorted[0].total_revenue || 1;
+
+    el.innerHTML = sorted.map((b, i) => {
+        const pct = Math.round((b.total_revenue / maxRev) * 100);
+        const medals = ['🥇', '🥈', '🥉'];
+        const medal = i < 3 ? medals[i] : `<span class="text-muted">${i+1}.</span>`;
+        return `
+            <div class="rank-item" onclick="focusBranch(${b.lat},${b.lng})">
+                <div class="rank-item-header">
+                    <span class="rank-item-name">${medal} ${b.name}</span>
+                    <span class="rank-item-value">${formatCurrency(b.total_revenue)}đ</span>
+                </div>
+                <div class="rank-item-bar">
+                    <div class="rank-item-bar-fill" style="width:${pct}%;"></div>
+                </div>
+                <div class="rank-item-meta">
+                    <span>📦 ${b.total_orders} đơn</span>
+                    <span>🛵 ${b.delivery_orders}</span>
+                    ${b.avg_rating ? `<span>⭐ ${b.avg_rating}</span>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function focusBranch(lat, lng) {
+    map.setView([lat, lng], 15);
+    // Mở popup marker tương ứng
+    markers.forEach(m => {
+        const pos = m.getLatLng();
+        if (Math.abs(pos.lat - lat) < 0.0001 && Math.abs(pos.lng - lng) < 0.0001) {
+            m.openPopup();
+        }
+    });
+}
+
+// Load
+loadData();
+</script>
+
+{% endblock %}
+

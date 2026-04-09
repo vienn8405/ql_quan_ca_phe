@@ -1,0 +1,72 @@
+{% extends 'cafe/base.html' %}
+{% load currency_filters %}
+{% block title %}Quản lý Voucher{% endblock %}
+{% block page_heading %}Quản lý Voucher{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">🎟️ Quản lý Voucher</h2>
+        <p class="page-header-desc">Tạo và quản lý mã giảm giá cho khách hàng.</p>
+    </div>
+    <a href="{% url 'voucher_add' %}" class="btn btn-primary">+ Tạo Voucher</a>
+</div>
+
+{% if messages %}
+{% for msg in messages %}
+<div class="alert alert-success mb-md">{{ msg }}</div>
+{% endfor %}
+{% endif %}
+
+<div class="widget-card">
+<div class="widget-body p-0">
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Mã Voucher</th><th>Loại giảm</th><th>Giá trị</th>
+            <th>Đơn tối thiểu</th><th>Đã dùng / Tổng</th>
+            <th>Hết hạn</th><th>Trạng thái</th><th>Thao tác</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for v in vouchers %}
+        <tr>
+            <td>
+                <span class="code-chip">{{ v.code }}</span>
+                <br>
+                {% if v.branch %}
+                <span class="badge badge-coffee">📍 {{ v.branch.name }}</span>
+                {% else %}
+                <span class="badge">🌐 Toàn hệ thống</span>
+                {% endif %}
+                
+                {% if v.description %}<br><small class="text-muted">{{ v.description }}</small>{% endif %}
+            </td>
+            <td>{{ v.get_discount_type_display }}</td>
+            <td>
+                {% if v.discount_type == 'percent' %}
+                    {{ v.discount_value }}%
+                {% else %}
+                    {{ v.discount_value|vnd }}
+                {% endif %}
+            </td>
+            <td>{{ v.min_order_value|vnd }}</td>
+            <td>{{ v.used_count }} / {{ v.max_uses }}</td>
+            <td>{% if v.expired_at %}{{ v.expired_at|date:"d/m/Y" }}{% else %}<span class="text-muted">Không hết hạn</span>{% endif %}</td>
+            <td>
+                {% if v.is_active %}<span class="badge badge-green">✅ Hoạt động</span>
+                {% else %}<span class="badge badge-red">❌ Tắt</span>{% endif %}
+            </td>
+            <td>
+                <a href="{% url 'voucher_edit' v.id %}" class="btn btn-sm btn-outline">✏️ Sửa</a>
+                <a href="{% url 'voucher_delete' v.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Xóa voucher {{ v.code }}?')">🗑️</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="empty-state-cell">Chưa có voucher nào</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+</div>
+{% endblock %}
