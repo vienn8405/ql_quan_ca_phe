@@ -1,0 +1,56 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Quản lý Ca làm việc{% endblock %}
+{% block page_heading %}Ca Làm Việc Nhân Viên{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <form method="GET" class="filter-bar">
+            <input type="date" name="date" class="form-control" value="{{ request.GET.date }}">
+            <select name="branch" class="form-control">
+                <option value="">-- Tất cả Chi nhánh --</option>
+                {% for b in branches %}
+                <option value="{{ b.id }}" {% if request.GET.branch == b.id|stringformat:"s" %}selected{% endif %}>{{ b.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-secondary">Lọc</button>
+        </form>
+    </div>
+    <a href="{% url 'shift_add' %}" class="btn btn-success">+ Phân ca mới</a>
+</div>
+
+<div class="widget-card">
+<div class="widget-body p-0">
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Ngày</th>
+            <th>Ca</th>
+            <th>Chi nhánh</th>
+            <th>Nhân viên</th>
+            <th>Ghi chú</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for shift in shifts %}
+        <tr>
+            <td>{{ shift.date|date:"d/m/Y" }}</td>
+            <td><strong>{{ shift.get_shift_type_display }}</strong></td>
+            <td>{{ shift.branch.name }}</td>
+            <td>
+                {% for assignment in shift.assignments.all %}
+                <span class="badge badge-green">{{ assignment.employee.name }}</span>
+                {% empty %}
+                <span class="text-muted text-sm">Chưa xếp NV</span>
+                {% endfor %}
+            </td>
+            <td class="text-muted text-sm">{{ shift.notes }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="empty-state-cell">Không có dữ liệu lịch làm việc.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+</div>
+{% endblock %}

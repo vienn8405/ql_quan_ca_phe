@@ -1,34 +1,52 @@
 {% extends 'cafe/base.html' %}
+{% load currency_filters %}
+
+{% block title %}Quản lý nhân viên{% endblock %}
+{% block page_heading %}Quản lý nhân viên{% endblock %}
 
 {% block content %}
-<h1>Quản lý nhân viên</h1>
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">👨‍💼 Danh sách nhân viên</h2>
+        <p class="page-header-desc">
+            Theo dõi thông tin nhân viên đang làm việc trong hệ thống.
+        </p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Quay lại Dashboard</a>
+        <a href="{% url 'employee_add' %}" class="btn btn-primary">➕ Thêm nhân viên</a>
+    </div>
+</div>
 
-<a href="/admin/employees/add/">➕ Thêm nhân viên</a>
-<br><br>
-
-<table border="1">
-    <tr>
-        <th>Tên</th>
-        <th>Chức vụ</th>
-        <th>SĐT</th>
-        <th>Lương</th>
-        <th>Hành động</th>
-    </tr>
+{% if employees %}
+<div class="employee-grid-v3">
     {% for e in employees %}
-    <tr>
-        <td>{{ e.name }}</td>
-        <td>{{ e.role }}</td>
-        <td>{{ e.phone }}</td>
-        <td>{{ e.salary }}</td>
-        <td>
-            <a href="/admin/employees/edit/{{ e.id }}/">✏️ Sửa</a>
-            |
-            <a href="/admin/employees/delete/{{ e.id }}/">❌ Xóa</a>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
+    <div class="employee-card-v3">
+        <div class="employee-avatar-v3">👨‍💼</div>
+        <h3>{{ e.name }}</h3>
 
-<br>
-<a href="/admin/">⬅ Dashboard</a>
+        <div class="employee-info-v3">
+            <p><strong>Chức vụ:</strong> {{ e.role }}</p>
+            <p><strong>Số điện thoại:</strong> {{ e.phone }}</p>
+            <p><strong>Lương:</strong> {{ e.salary|vnd }}</p>
+            <p><strong>Ngày tạo:</strong> {{ e.created_at|date:"d/m/Y H:i" }}</p>
+        </div>
+
+        <div class="admin-card-actions">
+            <a href="{% url 'employee_edit' e.id %}" class="btn btn-secondary">✏️ Sửa</a>
+            <a href="{% url 'employee_delete' e.id %}" class="btn btn-secondary"
+               onclick="return confirm('Bạn có chắc muốn xóa nhân viên này không?')">
+                🗑️ Xóa
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state-box">
+    <div class="empty-icon">👨‍💼</div>
+    <h3>Chưa có nhân viên</h3>
+    <p>Dữ liệu nhân viên sẽ được hiển thị tại đây.</p>
+</div>
+{% endif %}
 {% endblock %}

@@ -1,57 +1,79 @@
 {% extends 'cafe/base.html' %}
-{% block title %}Menu{% endblock %}
+{% load currency_filters %}
+
+{% block title %}Menu đồ uống{% endblock %}
+{% block page_heading %}Menu đồ uống{% endblock %}
+
 {% block content %}
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Menu</title>
-</head>
-<body>
-    <h1>Menu quán cà phê</h1>
+<div class="menu-header-v3">
+    <div>
+        <h2 class="page-header-title">☕ Thực đơn quán cà phê</h2>
+        <p class="page-header-desc">
+            Chọn món bạn muốn đặt. Hệ thống sẽ tự kiểm tra kho thành phẩm và nguyên liệu trước khi xử lý.
+        </p>
+    </div>
 
-    {% if products %}
-    <ul style="list-style:none;padding:0;">
-        {% for p in products %}
-            <li style="display:flex;gap:12px;align-items:center;
-                       padding:12px;border:1px solid #ddd;
-                       border-radius:12px;margin-bottom:12px;">
+    <div class="menu-header-badge">
+        Smart Menu
+    </div>
+</div>
 
-                {% if p.image %}
-                    <img src="{{ p.image.url }}"
-                         style="width:80px;height:80px;
-                                object-fit:cover;border-radius:12px;">
+{% if product_data %}
+<div class="menu-grid-v3">
+    {% for item in product_data %}
+    {% with p=item.product %}
+    <div class="menu-card-v3">
+        <div class="menu-card-image-wrap">
+            {% if p.image %}
+                <img src="{{ p.image.url }}" alt="{{ p.name }}" class="menu-card-image-v3">
+            {% else %}
+                <div class="menu-card-noimg-v3">☕</div>
+            {% endif %}
+
+            <div class="menu-card-floating">
+                CafeFlow
+            </div>
+        </div>
+
+        <div class="menu-card-body-v3">
+            <div class="menu-card-head-v3">
+                <h3 class="menu-card-title-v3">{{ p.name }}</h3>
+                <div class="menu-card-price-v3">{{ p.price|vnd }}</div>
+            </div>
+
+            <div class="menu-stock-text-v3">
+                Tồn kho thành phẩm: <strong>{{ item.finished_qty }}</strong>
+            </div>
+
+            <div class="menu-status-v3">
+                {% if item.stock_status == 'available' %}
+                    <span class="badge badge-green">🟢 {{ item.stock_text }}</span>
+                {% elif item.stock_status == 'makeable' %}
+                    <span class="badge badge-orange">🟠 {{ item.stock_text }}</span>
                 {% else %}
-                    <div style="width:80px;height:80px;
-                                display:flex;align-items:center;
-                                justify-content:center;
-                                background:#eee;border-radius:12px;">
-                        ☕
-                    </div>
+                    <span class="badge badge-red">🔴 {{ item.stock_text }}</span>
+                {% endif %}
+            </div>
+
+            <div class="menu-card-actions-v3">
+                {% if item.stock_status != 'out' %}
+                    <a href="{% url 'cart_add' p.id %}" class="btn btn-primary">➕ Thêm vào giỏ</a>
+                {% else %}
+                    <span class="btn btn-secondary btn-disabled">Tạm hết món</span>
                 {% endif %}
 
-                <div style="flex:1;">
-                    <div style="font-weight:bold;">
-                        {{ p.name }}
-                    </div>
-                    <div>
-                        {{ p.price }}đ
-                    </div>
-                    <a href="{% url 'cart_add' p.id %}">
-                        ➕ Thêm vào giỏ
-                    </a>
-                </div>
-
-            </li>
-        {% endfor %}
-    </ul>
+                <a href="{% url 'cart' %}" class="btn btn-secondary">🛒 Giỏ hàng</a>
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+    {% endfor %}
+</div>
 {% else %}
-    <p>Chưa có sản phẩm</p>
+<div class="empty-state-box">
+    <div class="empty-icon">☕</div>
+    <h3>Chưa có sản phẩm nào</h3>
+    <p>Hiện hệ thống chưa có món để hiển thị trong menu.</p>
+</div>
 {% endif %}
-
-    <a href="{% url 'cart' %}">🛒 Xem giỏ hàng</a>
-    <a href="{% url 'user_home' %}">← Quay lại trang chính</a>
-
-    
-</body>
-</html>
 {% endblock %}

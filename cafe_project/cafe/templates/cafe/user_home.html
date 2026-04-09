@@ -1,36 +1,82 @@
 {% extends 'cafe/base.html' %}
 
-{% block title %}Trang chủ {% endblock %}
+{% block title %}Trang chủ{% endblock %}
+{% block page_heading %}Trải nghiệm cà phê thông minh{% endblock %}
 
 {% block content %}
-<h1>☕ Chào mừng đến Quán Cà Phê</h1>
+<div class="hero-home-v2">
+    <div class="hero-text-col">
+        <span class="hero-kicker">Coffee • Smart Ordering • Inventory • GIS</span>
+        <h2 class="hero-big-title">Quản lý quán cà phê hiện đại, đẹp mắt và thông minh hơn.</h2>
+        <p class="hero-text">
+            Khám phá menu cà phê đa dạng, đặt món nhanh chóng 
+và dễ dàng tìm chi nhánh gần bạn nhất trên bản đồ.
+        </p>
 
-<p>
-  Chào bạn 👋  
-  Hãy xem menu và chọn món yêu thích của bạn nhé!
-</p>
+        <div class="hero-actions">
+            <a href="{% url 'user_menu' %}" class="btn btn-primary">📋 Xem menu</a>
+            <a href="{% url 'cart' %}" class="btn btn-success">🛒 Xem giỏ hàng</a>
+            <a href="{% url 'map' %}" class="btn btn-secondary">🗺️ Xem bản đồ</a>
+        </div>
 
-<hr>
+        <div class="hero-mini-stats">
+            <div class="mini-stat">
+                <span class="mini-stat-label">Trải nghiệm</span>
+                <strong>Đặt món nhanh chóng</strong>
+            </div>
+            <div class="mini-stat">
+                <span class="mini-stat-label">Nghiệp vụ</span>
+                <strong>Pha chế tự động</strong>
+            </div>
+            <div class="mini-stat">
+                <span class="mini-stat-label">Mở rộng</span>
+                <strong>Bản đồ chi nhánh</strong>
+            </div>
+        </div>
+    </div>
 
-<h2>📋 Danh mục đồ uống</h2>
-<ul>
-  {% for c in categories %}
-    <li>{{ c.name }}</li>
-  {% endfor %}
-</ul>
+    <div class="hero-image-col">
+        <div class="hero-coffee-card">
+            <img src="https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=900&q=80" alt="Coffee" class="hero-coffee-img">
+            <div class="hero-coffee-overlay">
+                <span class="floating-badge">CafeFlow Signature</span>
+                <h3>Không gian cà phê hiện đại</h3>
+                <p>Khám phá menu đa dạng, đặt món nhanh chóng và tận hưởng trải nghiệm cà phê tiện lợi</p>
+            </div>
+        </div>
+    </div>
+</div>
 
-<hr>
+<div class="feature-grid">
+    <div class="feature-box">
+        <div class="feature-icon">☕</div>
+        <h3>Menu thông minh</h3>
+        <p>Khám phá menu cà phê đa dạng và xem ngay những món đang có sẵn.</p>
+    </div>
 
-<h2>👉 Bắt đầu đặt món</h2>
-<ul>
-  <li>📖 <a href="{% url 'user_menu' %}">Xem menu</a></li>
-  <li>🛒 <a href="{% url 'cart' %}">Xem giỏ hàng</a></li>
-  
-</ul>
+    <div class="feature-box">
+        <div class="feature-icon">🛒</div>
+        <h3>Đặt món nhanh chóng</h3>
+        <p>Thêm món vào giỏ hàng và đặt cà phê chỉ trong vài bước đơn giản.</p>
+    </div>
 
-<hr>
+    <div class="feature-box">
+        <div class="feature-icon">🗺️</div>
+        <h3>Tìm quán gần bạn</h3>
+        <p>Dễ dàng tìm các chi nhánh CafeFlow gần nhất trên bản đồ.</p>
+    </div>
+</div>
 
-<p>
-  🔐 <a href="{% url 'login' %}">Đăng nhập (dành cho admin)</a>
-</p>
+<div class="soft-panel mt-lg">
+    <h2 class="page-header-title">Danh mục đồ uống</h2>
+    <p class="page-header-desc">Các danh mục hiện có trong hệ thống của bạn.</p>
+
+    <div class="category-chip-wrap">
+        {% for c in categories %}
+            <div class="category-chip">🥤 {{ c.name }}</div>
+        {% empty %}
+            <div class="category-chip">Chưa có danh mục</div>
+        {% endfor %}
+    </div>
+</div>
 {% endblock %}

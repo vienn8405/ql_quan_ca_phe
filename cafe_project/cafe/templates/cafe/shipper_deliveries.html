@@ -1,0 +1,621 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shipper - Đơn giao hàng | CafeFlow</title>
+    <link rel="stylesheet" href="{% static 'cafe/style.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Be Vietnam Pro', sans-serif; background: var(--bg, #f8f6f3); color: var(--text, #1a1a1a); }
+
+        /* Shipper header */
+        .shipper-header {
+            background: linear-gradient(135deg, var(--coffee-dark, #3f2518) 0%, var(--coffee, #5d3926) 100%);
+            color: #fff; padding: 14px 24px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .shipper-header h1 {
+            font-size: 18px; font-weight: 700;
+            display: flex; align-items: center; gap: 8px; margin: 0;
+        }
+        .shipper-header .header-right {
+            display: flex; align-items: center; gap: 12px; font-size: 13px;
+        }
+        .shipper-header .badge-count {
+            background: var(--red, #dc2626); color: #fff;
+            font-size: 12px; font-weight: 700;
+            padding: 2px 8px; border-radius: 12px;
+            animation: pulse-badge 2s infinite;
+        }
+        @keyframes pulse-badge {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .shipper-header a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; transition: all 0.15s; }
+        .shipper-header a:hover { color: #fff; }
+
+        /* Layout */
+        .shipper-layout { display: flex; height: calc(100vh - 52px); }
+
+        /* Sidebar */
+        .shipper-sidebar {
+            width: 380px; background: var(--surface, #fff);
+            overflow-y: auto; border-right: 1px solid var(--border, #eae5df);
+        }
+        .shipper-sidebar::-webkit-scrollbar { width: 5px; }
+        .shipper-sidebar::-webkit-scrollbar-track { background: transparent; }
+        .shipper-sidebar::-webkit-scrollbar-thumb { background: rgba(93,57,38,0.12); border-radius: 3px; }
+        .shipper-sidebar::-webkit-scrollbar-thumb:hover { background: rgba(93,57,38,0.25); }
+
+        .sidebar-title {
+            padding: 14px 16px; font-size: 14px; font-weight: 700;
+            color: var(--text, #1a1a1a); border-bottom: 1px solid var(--border-light, #f0ece7);
+            background: var(--surface-hover, #faf9f7); position: sticky; top: 0; z-index: 1;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        /* Order cards */
+        .order-card {
+            padding: 12px 16px; border-bottom: 1px solid var(--border-light, #f0ece7);
+            cursor: pointer; transition: all 0.15s;
+        }
+        .order-card:hover { background: var(--surface-hover, #faf9f7); }
+        .order-card.active { background: var(--bg-2, #f2efeb); border-left: 3px solid var(--coffee, #5d3926); }
+
+        .order-card .order-top {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+        }
+        .order-card .order-id { font-weight: 700; color: var(--text, #1a1a1a); font-size: 14px; }
+        .order-card .order-time { font-size: 11px; color: var(--muted, #888); }
+        .order-card .order-customer { font-size: 13px; color: var(--text-secondary, #555); margin-bottom: 4px; }
+        .order-card .order-address { font-size: 12px; color: var(--muted, #888); }
+        .order-card .order-badges { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+        .order-card .badge { font-size: 10px; padding: 2px 8px; border-radius: 8px; font-weight: 600; }
+
+        /* Badge variants */
+        .badge-waiting { background: rgba(217,119,6,0.08); color: #92400e; }
+        .badge-assigned { background: rgba(125, 90, 32, 0.10); color: #7c4a03; }
+        .badge-accepted { background: rgba(8,145,178,0.10); color: #155e75; }
+        .badge-shipping { background: rgba(37,99,235,0.08); color: #1e40af; }
+        .badge-failed { background: rgba(220,38,38,0.08); color: #b91c1c; }
+        .badge-price { background: rgba(22,163,74,0.08); color: #166534; }
+        .badge-branch { background: #f0e6dc; color: #4a2c1d; }
+        .order-meta { font-size: 11px; color: #777; margin-top: 6px; line-height: 1.5; }
+        .order-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+        .order-actions button {
+            border: none; border-radius: 8px; padding: 6px 10px; cursor: pointer;
+            font-size: 12px; font-weight: 600; font-family: inherit;
+        }
+        .btn-accept { background: #e0f2fe; color: #075985; }
+        .btn-reject { background: #fee2e2; color: #b91c1c; }
+        .btn-start { background: #dbeafe; color: #1d4ed8; }
+        .btn-done { background: #dcfce7; color: #166534; }
+        .btn-fail { background: #fef3c7; color: #92400e; }
+
+        /* Empty state */
+        .no-orders { padding: 40px 16px; text-align: center; color: var(--muted, #888); }
+        .no-orders .no-icon { font-size: 48px; margin-bottom: 12px; }
+
+        /* Map */
+        .shipper-map-wrap { flex: 1; position: relative; }
+        #shipper-map { width: 100%; height: 100%; }
+
+        /* Refresh button */
+        .refresh-btn {
+            position: absolute; top: 12px; right: 12px; z-index: 999;
+            background: var(--surface, #fff); border: 1px solid var(--border, #eae5df); border-radius: 10px;
+            padding: 8px 14px; font-size: 13px; font-weight: 600;
+            cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.15s; font-family: inherit; color: var(--text, #1a1a1a);
+        }
+        .refresh-btn:hover { background: var(--surface-hover, #faf9f7); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .shipper-layout { flex-direction: column; height: auto; }
+            .shipper-sidebar { width: 100%; max-height: 50vh; }
+            .shipper-map-wrap { height: 50vh; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="shipper-header">
+        <h1>🚀 CafeFlow Shipper</h1>
+        <div class="header-right">
+            <span>👤 {{ request.session.user_name }}</span>
+            <span class="badge-count" id="orderCount">0</span> đơn
+            <a href="{% url 'logout' %}">🚪 Đăng xuất</a>
+        </div>
+    </div>
+
+    <!-- Layout: Sidebar + Map -->
+    <div class="shipper-layout">
+        <!-- Sidebar danh sách đơn -->
+        <div class="shipper-sidebar">
+            <div class="sidebar-title">📦 Đơn cần giao</div>
+            <div id="orderList">
+                <div class="no-orders">
+                    <div class="no-icon">📭</div>
+                    <p>Đang tải danh sách đơn...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bản đồ -->
+        <div class="shipper-map-wrap">
+            <div id="shipper-map"></div>
+            <button class="refresh-btn" onclick="loadDeliveries()">🔄 Làm mới</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+    // ==================== SHIPPER MAP ====================
+    let isMapFitted = false; // Ngăn chặn map tự động fitBounds liên tục mỗi 30s
+    const map = L.map('shipper-map').setView([10.762622, 106.660172], 12);
+
+    L.tileLayer('http://mt0.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}', {
+        maxZoom: 19,
+        attribution: '&copy; Google Maps'
+    }).addTo(map);
+
+    let customerMarkers = [];
+    let branchMarkers = [];
+    let allOrders = [];
+    const currentUserRole = "{{ request.session.user_role|default:'' }}";
+
+    function getCookie(name) {
+        const cookieValue = document.cookie
+            .split('; ')
+            .find(row => row.startsWith(name + '='));
+        return cookieValue ? decodeURIComponent(cookieValue.split('=')[1]) : '';
+    }
+
+    function badgeClassForDeliveryStatus(statusCode) {
+        if (statusCode === 'waiting') return 'badge-waiting';
+        if (statusCode === 'assigned') return 'badge-assigned';
+        if (statusCode === 'accepted') return 'badge-accepted';
+        if (statusCode === 'shipping') return 'badge-shipping';
+        if (statusCode === 'failed') return 'badge-failed';
+        return 'badge-branch';
+    }
+
+    function submitDeliveryAction(orderId, action, requireReason = false) {
+        let reason = '';
+        if (requireReason) {
+            reason = window.prompt(
+                action === 'fail'
+                    ? 'Nhập lý do giao thất bại:'
+                    : 'Nhập lý do từ chối đơn:'
+            ) || '';
+            if (!reason.trim()) {
+                alert('Vui lòng nhập lý do để tiếp tục.');
+                return;
+            }
+        }
+
+        const formData = new FormData();
+        if (reason) formData.append('reason', reason.trim());
+
+        fetch(`/shipper/deliveries/${orderId}/${action}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+            .then(async response => {
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Thao tác thất bại');
+                }
+                alert(data.message);
+                clearActiveRoute();
+                loadDeliveries();
+            })
+            .catch(err => {
+                alert(err.message || 'Có lỗi xảy ra khi cập nhật đơn giao hàng');
+            });
+    }
+
+    function renderOrderActions(o) {
+        if (currentUserRole !== 'shipper' || !o.is_mine) return '';
+
+        if (o.delivery_status_code === 'assigned') {
+            return `
+                <div class="order-actions">
+                    <button type="button" class="btn-accept" onclick="event.stopPropagation(); submitDeliveryAction(${o.id}, 'accept')">Nhận đơn</button>
+                    <button type="button" class="btn-reject" onclick="event.stopPropagation(); submitDeliveryAction(${o.id}, 'reject', true)">Từ chối</button>
+                </div>
+            `;
+        }
+
+        if (o.delivery_status_code === 'accepted') {
+            return `
+                <div class="order-actions">
+                    <button type="button" class="btn-start" onclick="event.stopPropagation(); submitDeliveryAction(${o.id}, 'start')">Bắt đầu giao</button>
+                    <button type="button" class="btn-reject" onclick="event.stopPropagation(); submitDeliveryAction(${o.id}, 'reject', true)">Từ chối</button>
+                </div>
+            `;
+        }
+
+        if (o.delivery_status_code === 'shipping') {
+            return `
+                <div class="order-actions">
+                    <button type="button" class="btn-done" onclick="event.stopPropagation(); submitDeliveryAction(${o.id}, 'complete')">Giao thành công</button>
+                    <button type="button" class="btn-fail" onclick="event.stopPropagation(); submitDeliveryAction(${o.id}, 'fail', true)">Báo thất bại</button>
+                </div>
+            `;
+        }
+
+        return '';
+    }
+
+    // Icon khách giao hàng
+    const customerIcon = L.divIcon({
+        html: '<div style="font-size:24px;text-align:center; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">📍</div>',
+        iconSize: [28, 32],
+        iconAnchor: [14, 32],
+        popupAnchor: [0, -32],
+        className: ''
+    });
+
+    // Icon chi nhánh
+    const branchIcon = L.divIcon({
+        html: '<div style="font-size:22px;text-align:center; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">☕</div>',
+        iconSize: [26, 30],
+        iconAnchor: [13, 30],
+        popupAnchor: [0, -30],
+        className: ''
+    });
+
+    // Active Route State (Chỉ render 1 route active)
+    let activeRouteParams = {
+        orderId: null,
+        polyline: null,
+        shipperMarker: null,
+        coords: [],
+        animRequest: null,
+        animIndex: 0,
+        fraction: 0,
+        animationToken: 0
+    };
+
+    // Các hàm tính toán hướng và tọa độ
+    function calculateBearing(lat1, lng1, lat2, lng2) {
+        const radLat1 = (lat1 * Math.PI) / 180;
+        const radLat2 = (lat2 * Math.PI) / 180;
+        const dLon = ((lng2 - lng1) * Math.PI) / 180;
+
+        const y = Math.sin(dLon) * Math.cos(radLat2);
+        const x = Math.cos(radLat1) * Math.sin(radLat2) - Math.sin(radLat1) * Math.cos(radLat2) * Math.cos(dLon);
+
+        const bearing = (Math.atan2(y, x) * 180) / Math.PI;
+        return (bearing + 360) % 360;
+    }
+
+    function calculateMidpoint(lat1, lng1, lat2, lng2, fraction) {
+        return [
+            lat1 + (lat2 - lat1) * fraction,
+            lng1 + (lng2 - lng1) * fraction
+        ];
+    }
+
+    function loadDeliveries() {
+        fetch("{% url 'api_shipper_deliveries' %}")
+            .then(r => r.json())
+            .then(data => {
+                allOrders = data;
+                renderOrderList(data);
+                renderMapPins(data);
+                document.getElementById('orderCount').textContent = data.length;
+            })
+            .catch(err => {
+                console.error('Lỗi load đơn:', err);
+                document.getElementById('orderList').innerHTML = `
+                    <div class="no-orders"><div class="no-icon">⚠️</div><p>Lỗi tải đơn hàng</p></div>`;
+            });
+    }
+
+    function renderOrderList(orders) {
+        const container = document.getElementById('orderList');
+        if (orders.length === 0) {
+            container.innerHTML = `<div class="no-orders"><div class="no-icon">✅</div><p>Hiện không có đơn giao hàng phù hợp</p></div>`;
+            return;
+        }
+
+        container.innerHTML = orders.map((o, idx) => `
+            <div class="order-card ${activeRouteParams.orderId === o.id ? 'active' : ''}" id="order-card-${o.id}" onclick="focusOrder(${idx})">
+                <div class="order-top">
+                    <span class="order-id">#${o.id}</span>
+                    <span class="order-time">${o.created_at}</span>
+                </div>
+                <div class="order-customer">👤 ${o.customer_name} &bull; 📱 ${o.customer_phone}</div>
+                <div class="order-address">📍 ${o.customer_address || 'Chưa có địa chỉ'}</div>
+                <div class="order-badges">
+                    <span class="badge ${badgeClassForDeliveryStatus(o.delivery_status_code)}">${o.delivery_status}</span>
+                    <span class="badge badge-price">${o.total_price.toLocaleString('vi-VN')}đ</span>
+                    ${o.branch ? `<span class="badge badge-branch">☕ ${o.branch.name}</span>` : ''}
+                </div>
+                <div class="order-meta">
+                    ${o.assigned_shipper_name ? `<div>Shipper: <strong>${o.assigned_shipper_name}</strong></div>` : '<div>Shipper: <strong>Chưa gán</strong></div>'}
+                    ${o.assigned_at ? `<div>Gán lúc: ${o.assigned_at}</div>` : ''}
+                    ${o.accepted_at ? `<div>Nhận đơn: ${o.accepted_at}</div>` : ''}
+                    ${o.started_delivery_at ? `<div>Bắt đầu giao: ${o.started_delivery_at}</div>` : ''}
+                    ${o.failure_reason ? `<div style="color:#b91c1c;">Lý do lỗi: ${o.failure_reason}</div>` : ''}
+                </div>
+                ${renderOrderActions(o)}
+            </div>
+        `).join('');
+    }
+
+    function renderMapPins(orders) {
+        // Xóa markers tĩnh cũ
+        customerMarkers.forEach(m => map.removeLayer(m));
+        branchMarkers.forEach(m => map.removeLayer(m));
+        customerMarkers = [];
+        branchMarkers = [];
+
+        const bounds = [];
+        const branchSet = new Set();
+        let activeOrderStillExists = false;
+
+        orders.forEach((o, idx) => {
+            const cMarker = L.marker([o.customer_lat, o.customer_lng], {icon: customerIcon})
+                .addTo(map)
+                .bindPopup(createPopup(o));
+            cMarker._orderIdx = idx;
+            customerMarkers.push(cMarker);
+            bounds.push([o.customer_lat, o.customer_lng]);
+
+            if (o.branch) {
+                const bKey = `${o.branch.lat}-${o.branch.lng}`;
+                if (!branchSet.has(bKey)) {
+                    branchSet.add(bKey);
+                    const bMarker = L.marker([o.branch.lat, o.branch.lng], {icon: branchIcon})
+                        .addTo(map)
+                        .bindPopup(`<b>☕ ${o.branch.name}</b><br>${o.branch.address}`);
+                    branchMarkers.push(bMarker);
+                    bounds.push([o.branch.lat, o.branch.lng]);
+                }
+            }
+
+            if (activeRouteParams.orderId === o.id) activeOrderStillExists = true;
+        });
+
+        // Clear route active nếu order vừa bị hủy / hoàn thành chìm
+        if (activeRouteParams.orderId && !activeOrderStillExists) {
+            clearActiveRoute();
+        }
+
+        if (bounds.length > 0 && !isMapFitted) {
+            map.fitBounds(bounds, {padding: [40, 40]});
+            isMapFitted = true;
+        }
+    }
+
+    function clearActiveRoute() {
+        if (activeRouteParams.polyline) map.removeLayer(activeRouteParams.polyline);
+        if (activeRouteParams.shipperMarker) map.removeLayer(activeRouteParams.shipperMarker);
+        if (activeRouteParams.animRequest) cancelAnimationFrame(activeRouteParams.animRequest);
+        
+        activeRouteParams = {
+            orderId: null, polyline: null, shipperMarker: null, coords: [], animRequest: null, animIndex: 0, fraction: 0, animationToken: activeRouteParams.animationToken + 1
+        };
+    }
+
+    function createPopup(o) {
+        return `
+            <div style="min-width:200px;font-family:'Be Vietnam Pro',sans-serif;font-size:13px;">
+                <div style="font-weight:700;color:#4a2c1d;font-size:15px;margin-bottom:6px;">🛵 Đơn #${o.id}</div>
+                <div style="margin-bottom:4px;">👤 <b>${o.customer_name}</b></div>
+                <div style="margin-bottom:4px;">📱 <a href="tel:${o.customer_phone}" style="color:#2980b9;">${o.customer_phone}</a></div>
+                <div style="margin-bottom:4px;">📍 ${o.customer_address || 'N/A'}</div>
+                ${o.branch ? `<div style="margin-bottom:4px;">☕ ${o.branch.name}</div>` : ''}
+                <hr style="border:none;border-top:1px solid #eee;margin:6px 0;">
+                <div style="margin-bottom:4px;">📏 Khoảng cách: <b>${o.delivery_distance >= 1000 ? (o.delivery_distance/1000).toFixed(1) + ' km' : Math.round(o.delivery_distance) + ' m'}</b></div>
+                <div style="margin-bottom:4px;">💰 Tổng: <b>${o.total_price.toLocaleString('vi-VN')}đ</b> (Phí giao: ${o.delivery_fee.toLocaleString('vi-VN')}đ)</div>
+                <div style="margin-bottom:4px;">📋 Trạng thái: <b>${o.status}</b> | ${o.delivery_status}</div>
+                ${o.assigned_shipper_name ? `<div style="margin-bottom:4px;">🛵 Shipper: <b>${o.assigned_shipper_name}</b></div>` : ''}
+                ${o.failure_reason ? `<div style="margin-top:4px;color:#b91c1c;">⚠️ ${o.failure_reason}</div>` : ''}
+                ${o.note ? `<div style="margin-top:4px;color:#856404;">📝 ${o.note}</div>` : ''}
+            </div>
+        `;
+    }
+
+    function focusOrder(idx) {
+        const o = allOrders[idx];
+        if (!o || !o.branch) return;
+
+        // Highlight card
+        document.querySelectorAll('.order-card').forEach(c => c.classList.remove('active'));
+        const card = document.getElementById(`order-card-${o.id}`);
+        if (card) card.classList.add('active');
+
+        // Clear route cũ
+        clearActiveRoute();
+        activeRouteParams.orderId = o.id;
+
+        // Fetch routing từ OSRM Demo (Lấy dải geometry tuyến đường cong)
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${o.branch.lng},${o.branch.lat};${o.customer_lng},${o.customer_lat}?overview=full&geometries=geojson`;
+        
+        // Hiển thị loading state (Giữ giao diện tinh gọn, phản hồi qua thẻ của đơn)
+        if (card) {
+            card.style.opacity = '0.6';
+            card.style.pointerEvents = 'none'; // Chống click nháy nhiều lần
+        }
+
+        fetch(osrmUrl)
+            .then(r => r.json())
+            .then(data => {
+                if (card) { card.style.opacity = '1'; card.style.pointerEvents = 'auto'; }
+                if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                    const coords = data.routes[0].geometry.coordinates.map(pos => [pos[1], pos[0]]);
+                    renderRouteAndSimulate(coords, o);
+                } else {
+                    fallbackStraightRoute(o);
+                }
+            })
+            .catch(() => {
+                if (card) { card.style.opacity = '1'; card.style.pointerEvents = 'auto'; }
+                fallbackStraightRoute(o);
+            });
+    }
+
+    function fallbackStraightRoute(o) {
+        console.warn("Lỗi tải tuyến thực OSRM Route, dùng đường thẳng dự phòng.");
+        const coords = [
+            [o.branch.lat, o.branch.lng],
+            [o.customer_lat, o.customer_lng]
+        ];
+        renderRouteAndSimulate(coords, o);
+        
+        // Cảnh báo UX gọn nhẹ cho góc nhìn Shipper
+        if (customerMarkers[allOrders.indexOf(o)]) {
+            setTimeout(() => {
+                const marker = customerMarkers[allOrders.indexOf(o)];
+                if (marker) {
+                    marker.bindPopup(marker.getPopup().getContent() + `<div style="margin-top:8px;padding:6px;background:#fff3cd;color:#856404;border-radius:4px;font-size:12px;">⚠️ Không lấy được tuyến thực tế, đang dùng tuyến dự phòng.</div>`);
+                    marker.openPopup();
+                }
+            }, 300);
+        }
+    }
+
+    function renderRouteAndSimulate(coords, o) {
+        activeRouteParams.coords = coords;
+
+        // 1. Vẽ tuyến đường bám theo geometry cong
+        activeRouteParams.polyline = L.polyline(coords, {
+            color: '#3498db', weight: 6, opacity: 0.85
+        }).addTo(map);
+
+        map.fitBounds(activeRouteParams.polyline.getBounds(), {padding: [50, 50]});
+
+        // 2. Khởi tạo Shipper Marker ở điểm đầu
+        let currentAngle = coords.length > 1 ? calculateBearing(coords[0][0], coords[0][1], coords[1][0], coords[1][1]) : 0;
+        
+        function createShipperIcon(angle) {
+            return L.divIcon({
+                className: 'shipper-marker-anim',
+                html: `
+                <div style="filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5)); transform: rotate(${angle}deg);">
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="#c0392b" stroke="white" stroke-width="2">
+                        <path d="M12 2L22 22L12 18L2 22L12 2Z" />
+                    </svg>
+                </div>`,
+                iconSize: [34, 34],
+                iconAnchor: [17, 17],
+                popupAnchor: [0, -17]
+            });
+        }
+
+        function updateShipperMarker(position, angle) {
+            if (!activeRouteParams.shipperMarker) return;
+            activeRouteParams.shipperMarker.setIcon(createShipperIcon(angle));
+            activeRouteParams.shipperMarker.setLatLng(position);
+        }
+
+        activeRouteParams.shipperMarker = L.marker(coords[0], {
+            icon: createShipperIcon(currentAngle),
+            zIndexOffset: 1000
+        }).addTo(map).bindPopup(`<b>🚚 Áo cam đang giao:</b> Đơn #${o.id}`);
+
+        // Mở popup của khách để nhấn mạnh điểm đến
+        customerMarkers[allOrders.indexOf(o)]?.openPopup();
+
+        // 3. Sử dụng RequestAnimationFrame cho 60FPS siêu mượt
+        activeRouteParams.animIndex = 0;
+        activeRouteParams.fraction = 0;
+        activeRouteParams.animationToken += 1;
+        const animationToken = activeRouteParams.animationToken;
+
+        let lastTime = 0;
+        const speedMultiplier = 0.00018; // Tốc độ tiêu chuẩn
+
+        function animate(timestamp) {
+            // Memory check: Hủy nếu user vừa nhảy đơn khác (Marker đã bị null)
+            if (!activeRouteParams.shipperMarker || activeRouteParams.animationToken !== animationToken) return;
+            
+            if (!lastTime) lastTime = timestamp;
+            const delta = timestamp - lastTime;
+            lastTime = timestamp;
+
+            const st = activeRouteParams;
+            if (st.coords.length < 2) return;
+
+            // Tới cuối route thì dừng hẳn tại điểm cuối, không loop lại.
+            if (st.animIndex >= st.coords.length - 1) {
+                const finalPoint = st.coords[st.coords.length - 1];
+                updateShipperMarker(finalPoint, currentAngle);
+                st.animRequest = null;
+                return;
+            }
+
+            const p1 = st.coords[st.animIndex];
+            const p2 = st.coords[st.animIndex + 1];
+            
+            // Geographic distance thô giữa 2 đỉnh
+            const distSeg = Math.max(Math.sqrt(Math.pow(p2[0]-p1[0], 2) + Math.pow(p2[1]-p1[1], 2)), 0.000001);
+            
+            // Delta thay đổi dựa trên Time (khoảng cách thực) để duy trì Uniform Speed
+            st.fraction += (delta * speedMultiplier) / distSeg;
+
+            if (st.fraction >= 1) {
+                st.animIndex++;
+                st.fraction = 0;
+                if (st.animIndex >= st.coords.length - 1) {
+                    const finalPoint = st.coords[st.coords.length - 1];
+                    const prevPoint = st.coords[st.coords.length - 2] || finalPoint;
+                    currentAngle = calculateBearing(prevPoint[0], prevPoint[1], finalPoint[0], finalPoint[1]);
+
+                    updateShipperMarker(finalPoint, currentAngle);
+                    st.animRequest = null;
+                    return;
+                }
+            }
+
+            const currentP1 = st.coords[st.animIndex];
+            const currentP2 = st.coords[st.animIndex + 1] || st.coords[st.animIndex];
+            
+            let pos = currentP1;
+            let targetAngle = currentAngle;
+
+            if (currentP1[0] !== currentP2[0] || currentP1[1] !== currentP2[1]) {
+                pos = calculateMidpoint(currentP1[0], currentP1[1], currentP2[0], currentP2[1], st.fraction);
+                targetAngle = calculateBearing(currentP1[0], currentP1[1], currentP2[0], currentP2[1]);
+            }
+
+            // LERP (Linear Interpolation) góc quay: Làm mềm quỹ đạo không giật 180 độ
+            let angleDiff = targetAngle - currentAngle;
+            if (angleDiff > 180) angleDiff -= 360;
+            if (angleDiff < -180) angleDiff += 360;
+            
+            // Vặn lái 10% chênh lệch mỗi khung hình để mũi xe bo cua tự nhiên
+            currentAngle = currentAngle + angleDiff * 0.10; 
+
+            updateShipperMarker(pos, currentAngle);
+            
+            // Đăng ký gọi lại cho luồng tiếp theo
+            st.animRequest = requestAnimationFrame(animate);
+        }
+
+        activeRouteParams.animRequest = requestAnimationFrame(animate);
+    }
+
+    // Load lần đầu
+    loadDeliveries();
+
+    // Auto refresh mỗi 30 giây
+    setInterval(loadDeliveries, 30000);
+    </script>
+</body>
+</html>

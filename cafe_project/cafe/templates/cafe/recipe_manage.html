@@ -1,0 +1,94 @@
+{% extends 'cafe/base.html' %}
+
+{% block title %}Quản lý công thức{% endblock %}
+{% block page_heading %}Quản lý công thức{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">🧪 Công thức pha chế: {{ product.name }}</h2>
+        <p class="page-header-desc">Thiết lập nguyên liệu cần dùng cho mỗi sản phẩm.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'product_list' %}" class="btn btn-secondary">← Quay lại sản phẩm</a>
+    </div>
+</div>
+
+<div class="form-card">
+    <h3>➕ Thêm nguyên liệu vào công thức</h3>
+
+    {% if error %}
+        <div class="alert-danger">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="material">Nguyên liệu</label>
+            <select name="material" id="material" class="form-control" required>
+                <option value="">-- Chọn nguyên liệu --</option>
+                {% for m in materials %}
+                    <option value="{{ m.id }}">{{ m.name }} ({{ m.unit }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="quantity_required">Số lượng cần dùng</label>
+            <input
+                type="number"
+                name="quantity_required"
+                id="quantity_required"
+                class="form-control"
+                min="0.1"
+                step="0.1"
+                required
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary">Lưu công thức</button>
+    </form>
+</div>
+
+<br>
+
+{% if recipes %}
+<div class="table-shell-v2">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nguyên liệu</th>
+                    <th>Số lượng cần dùng</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in recipes %}
+                <tr>
+                    <td>{{ r.material.name }}</td>
+                    <td>{{ r.quantity_required }} {{ r.material.unit }}</td>
+                    <td>
+                        <a href="{% url 'recipe_delete' r.id %}"
+                           class="table-action-link danger"
+                           onclick="return confirm('Bạn có chắc muốn xóa nguyên liệu này khỏi công thức không?')">
+                           Xóa
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state-box">
+    <div class="empty-icon">🧪</div>
+    <h3>Chưa có công thức nào</h3>
+    <p>Hãy thêm nguyên liệu cho sản phẩm này.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,29 +1,52 @@
 {% extends 'cafe/base.html' %}
 
+{% block title %}Thêm sản phẩm{% endblock %}
+{% block page_heading %}Thêm sản phẩm{% endblock %}
+
 {% block content %}
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Thêm sản phẩm</title>
-</head>
-<body>
-    <h1>Thêm sản phẩm</h1>
+<div class="form-page-wrap">
+    <div class="form-card-v3">
+        <div class="form-card-head">
+            <span class="summary-kicker">Product Create</span>
+            <h2>Thêm sản phẩm mới</h2>
+            <p>Nhập thông tin món mới để hiển thị trên menu và quản lý trong hệ thống.</p>
+        </div>
 
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <input type="text" name="name" placeholder="Tên món"><br><br>
-        <select name="category">
-         {% for c in categories %}
-            <option value="{{ c.id }}">{{ c.name }}</option>
-         {% endfor %}
-        </select><br><br>
-         <input type="file" name="image" accept="image/*"><br><br>
-        <input type="number" name="price" placeholder="Giá"><br><br>
-        <button type="submit">Lưu</button>
-    </form>
+        <form method="post" enctype="multipart/form-data" class="admin-form-v3">
+            {% csrf_token %}
 
-    <br>
-    <a href="/admin/products/">⬅ Quay lại</a>
-</body>
-</html>
+            <div class="form-grid-v3">
+                <div class="form-group-v3">
+                    <label>Tên sản phẩm</label>
+                    <input type="text" name="name" required>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Giá</label>
+                    <input type="number" name="price" step="0.01" required>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Danh mục</label>
+                    <select name="category" required>
+                        <option value="">-- Chọn danh mục --</option>
+                        {% for c in categories %}
+                            <option value="{{ c.id }}">{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Ảnh sản phẩm</label>
+                    <input type="file" name="image">
+                </div>
+            </div>
+
+            <div class="form-action-row-v3">
+                <button type="submit" class="btn btn-primary">✅ Lưu sản phẩm</button>
+                <a href="{% url 'product_list' %}" class="btn btn-secondary">← Quay lại</a>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}

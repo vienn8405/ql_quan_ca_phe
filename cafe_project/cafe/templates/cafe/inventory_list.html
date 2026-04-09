@@ -1,28 +1,84 @@
 {% extends 'cafe/base.html' %}
 
+{% block title %}Kho thành phẩm{% endblock %}
+{% block page_heading %}Kho thành phẩm{% endblock %}
+
 {% block content %}
-<h1>Quản lý kho</h1>
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">📦 Kho thành phẩm</h2>
+        <p class="page-header-desc">Theo dõi số lượng đồ uống đã pha sẵn trong hệ thống.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Quay lại Dashboard</a>
+    </div>
+</div>
 
-<table border="1">
-    <tr>
-        <th>Sản phẩm</th>
-        <th>Loại</th>
-        <th>Số lượng tồn</th>
-        <th>Cập nhật</th>
-    </tr>
-
+{% if inventories %}
+<div class="inventory-grid content-scroll-box scroll-box-md">
     {% for i in inventories %}
-    <tr>
-        <td>{{ i.product.name }}</td>
-        <td>{{ i.product.category.name }}</td>
-        <td>{{ i.quantity }}</td>
-        <td>
-            <a href="/admin/inventory/edit/{{ i.id }}/">✏️ Sửa</a>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
+    <div class="inventory-card">
+        <div class="inventory-top">
 
-<br>
-<a href="/admin/">← Dashboard</a>
+    <div class="product-image">
+        {% if i.product.image %}
+            <img src="{{ i.product.image.url }}">
+        {% else %}
+            <div class="no-image">☕</div>
+        {% endif %}
+    </div>
+
+    <div class="product-info">
+        <h3>{{ i.product.name }}</h3>
+        <p>
+            Danh mục:
+            {% if i.product.category %}
+                {{ i.product.category.name }}
+            {% else %}
+                Chưa phân loại
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="inventory-qty">
+        {{ i.quantity }}
+    </div>
+
+</div>
+
+        <div class="inventory-meta">
+            <div class="meta-item">
+                <span>Tồn kho</span>
+                <strong>{{ i.quantity }} ly</strong>
+            </div>
+            <div class="meta-item">
+                <span>Cập nhật</span>
+                <strong>{{ i.updated_at|date:"d/m/Y H:i" }}</strong>
+            </div>
+        </div>
+
+        <div class="inventory-status">
+            {% if i.quantity <= 0 %}
+                <span class="badge badge-red">🔴 Hết hàng</span>
+            {% elif i.quantity <= 5 %}
+                <span class="badge badge-orange">🟠 Sắp hết</span>
+            {% else %}
+                <span class="badge badge-green">🟢 Còn hàng</span>
+            {% endif %}
+        </div>
+
+        <div class="inventory-actions">
+            <a href="{% url 'inventory_edit' i.id %}" class="btn btn-secondary">Cập nhật kho</a>
+            <a href="{% url 'inventory_make' i.product.id %}" class="btn btn-primary">Pha chế</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state-box">
+    <div class="empty-icon">🏪</div>
+    <h3>Chưa có dữ liệu kho thành phẩm</h3>
+    <p>Các món đã pha sẵn sẽ được hiển thị tại đây.</p>
+</div>
+{% endif %}
 {% endblock %}

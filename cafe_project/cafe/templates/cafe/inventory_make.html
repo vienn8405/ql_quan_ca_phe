@@ -1,0 +1,52 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Pha chế thêm{% endblock %}
+{% block page_heading %}Pha chế thêm thành phẩm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">Pha chế thêm thành phẩm</h2>
+        <p class="page-header-desc">Sản xuất thêm sản phẩm từ kho nguyên liệu của chi nhánh được chọn.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'inventory_list' %}" class="btn btn-secondary">← Quay lại kho thành phẩm</a>
+    </div>
+</div>
+
+<div class="form-container form-narrow">
+    <div class="form-group">
+        <label>Sản phẩm</label>
+        <div class="form-control input-readonly"><strong>{{ product.name }}</strong></div>
+    </div>
+    <div class="form-group">
+        <label>Tồn hiện tại</label>
+        <div class="form-control input-readonly"><strong>{{ inventory.quantity }}</strong></div>
+    </div>
+    <p style="margin:0 0 16px; color:#6b6258;">
+        Tồn thành phẩm ở đây là tồn hiện tại của sản phẩm. Khi pha chế, hệ thống sẽ trừ nguyên liệu theo chi nhánh bạn chọn bên dưới.
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Chi nhánh trừ kho nguyên liệu</label>
+            <select name="branch_id" class="form-control" required>
+                <option value="">-- Chọn chi nhánh --</option>
+                {% for branch in branches %}
+                <option value="{{ branch.id }}">{{ branch.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Số lượng muốn pha chế thêm</label>
+            <input type="number" name="quantity" min="1" value="1" required class="form-control">
+        </div>
+
+        <div class="form-action-row-v3">
+            <button type="submit" class="btn btn-primary">Pha chế thêm</button>
+            <a href="{% url 'inventory_list' %}" class="btn-cancel">Hủy</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

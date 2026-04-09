@@ -1,17 +1,84 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-    <title>Trang chủ</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trang chủ - CafeFlow</title>
+    <link rel="stylesheet" href="{% static 'cafe/style.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-<body>
-    <h1>☕ Cà phê & Bản đồ</h1>
+<body class="landing-body-v3">
+    <div class="landing-shell-v3">
+        <div class="landing-topbar-v3">
+            <div class="landing-brand-v3">
+                <div class="landing-brand-icon">☕</div>
+                <div>
+                    <h2>CafeFlow</h2>
+                    <p>Hệ thống quản lý quán cà phê thông minh</p>
+                </div>
+            </div>
 
-    <p>Chào mừng bạn đến với hệ thống quản lý & đặt đồ uống quán cà phê.</p>
+            <div class="landing-top-actions">
+                <a href="{% url 'login' %}" class="btn btn-secondary">Admin</a>
+                <a href="{% url 'user_home' %}" class="btn btn-primary">Vào hệ thống</a>
+            </div>
+        </div>
 
-    <hr>
+        <section class="landing-hero-v3">
+            <div class="landing-hero-text">
+                <span class="hero-kicker">Coffee • Inventory • Order • GIS</span>
+                <h1>Hệ thống quản lý quán cà phê hiện đại, đẹp mắt và thông minh.</h1>
+                <p>
+                    Website quản lý quán cà phê bằng Django với menu sản phẩm, giỏ hàng, đơn hàng,
+                    kho thành phẩm, kho nguyên liệu, công thức pha chế, pha chế tự động,
+                    dashboard thống kê và GIS bản đồ chi nhánh.
+                </p>
 
-    <a href="{% url 'user_home' %}">👤 Vào trang người dùng</a>
-    <br><br>
-    <a href="/login/">🔐 Đăng nhập admin</a>
+                <div class="landing-hero-actions">
+                    <a href="{% url 'user_home' %}" class="btn btn-primary">☕ Khách hàng</a>
+                    <a href="{% url 'login' %}" class="btn btn-secondary">🔐 Quản trị viên</a>
+                </div>
+            </div>
+
+            <div class="landing-hero-image-wrap">
+                <img src="https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1400&q=80"
+                     alt="Cafe" class="landing-hero-image">
+                <div class="landing-floating-card">
+                    <span class="summary-kicker">CafeFlow Project</span>
+                    <h3>Dự án cuối kỳ hoàn chỉnh</h3>
+                    <p>Hệ thống quản lý quán cà phê tích hợp bán hàng, kho, dashboard và bản đồ GIS.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="landing-feature-grid">
+            <div class="landing-feature-box">
+                <div class="feature-icon">📋</div>
+                <h3>Menu thông minh</h3>
+                <p>Hiển thị món theo trạng thái tồn kho thực tế và khả năng pha chế.</p>
+            </div>
+
+            <div class="landing-feature-box">
+                <div class="feature-icon">📦</div>
+                <h3>Kho & pha chế</h3>
+                <p>Tự trừ kho thành phẩm hoặc nguyên liệu khi khách đặt món.</p>
+            </div>
+
+            <div class="landing-feature-box">
+                <div class="feature-icon">📊</div>
+                <h3>Dashboard</h3>
+                <p>Theo dõi tổng đơn hàng, doanh thu và cảnh báo nguyên liệu sắp hết.</p>
+            </div>
+
+            <div class="landing-feature-box">
+                <div class="feature-icon">🗺️</div>
+                <h3>GIS chi nhánh</h3>
+                <p>Hiển thị vị trí các chi nhánh trên bản đồ để quản lý dễ dàng hơn.</p>
+            </div>
+        </section>
+    </div>
 </body>
 </html>

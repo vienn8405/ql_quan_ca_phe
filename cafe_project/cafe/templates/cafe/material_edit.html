@@ -1,0 +1,67 @@
+{% extends 'cafe/base.html' %}
+
+{% block title %}Sửa nguyên liệu{% endblock %}
+{% block page_heading %}Sửa nguyên liệu{% endblock %}
+
+{% block content %}
+<div class="form-page-wrap">
+    <div class="form-card-v3">
+        <div class="form-card-head">
+            <span class="summary-kicker">Material Update</span>
+            <h2>Cập nhật nguyên vật liệu</h2>
+            <p>Chỉnh sửa thông tin nguyên liệu và tồn kho theo chi nhánh đang chọn.</p>
+        </div>
+
+        <form method="post" class="admin-form-v3">
+            {% csrf_token %}
+
+            <p style="margin:0 0 16px; color:#6b6258;">
+                {% if selected_branch %}
+                Bạn đang cập nhật tồn kho của chi nhánh <strong>{{ selected_branch.name }}</strong>.
+                {% else %}
+                Bạn đang cập nhật dữ liệu tổng / dữ liệu dùng chung của nguyên liệu này.
+                {% endif %}
+            </p>
+
+            <div class="form-grid-v3">
+                <div class="form-group-v3">
+                    <label>Chi nhánh đang chỉnh</label>
+                    <select name="branch_id">
+                        <option value="">Toàn hệ thống</option>
+                        {% for branch in branches %}
+                        <option value="{{ branch.id }}" {% if selected_branch and selected_branch.id == branch.id %}selected{% endif %}>
+                            {{ branch.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Tên nguyên liệu</label>
+                    <input type="text" name="name" value="{{ material.name }}" required>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Số lượng</label>
+                    <input type="number" name="quantity" step="0.01" value="{{ display_quantity }}" required>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Mức tối thiểu</label>
+                    <input type="number" name="min_quantity" step="0.01" value="{{ display_min_quantity }}" required>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Đơn vị</label>
+                    <input type="text" name="unit" value="{{ material.unit }}" required>
+                </div>
+            </div>
+
+            <div class="form-action-row-v3">
+                <button type="submit" class="btn btn-primary">Cập nhật nguyên liệu</button>
+                <a href="{% url 'material_list' %}{% if selected_branch %}?branch_id={{ selected_branch.id }}{% endif %}" class="btn btn-secondary">← Quay lại</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

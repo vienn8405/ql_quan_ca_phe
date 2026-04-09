@@ -1,23 +1,135 @@
 {% extends 'cafe/base.html' %}
+{% load currency_filters %}
+{% block title %}Dashboard Thống kê{% endblock %}
+{% block page_heading %}Hệ thống quản lý quán cà phê{% endblock %}
 
 {% block content %}
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Admin Dashboard</title>
-</head>
-<body>
-    <h1>Trang quản trị</h1>
+<div class="page-header mb-lg">
+    <div>
+        <h2 class="page-header-title">📊 Dashboard Thống Kê Tổng Quan</h2>
+        <p class="page-header-desc">Tổng hợp doanh thu, đơn hàng và hoạt động của hệ thống.</p>
+    </div>
+</div>
 
-    <ul>
-        <li><a href="/admin/products/">Quản lý sản phẩm</a></li>
-        <li><a href="/admin/orders/">Quản lý đơn hàng</a></li>
-        <li><a href="/admin/categories/">Quản lý loại</a></li>
-        <li><a href="/admin/inventory/">Quản lý kho</a></li>
-        <li><a href="/admin/employees/">Quản lý nhân viên</a></li>
-        <li><a href="/admin/branches/">Quản lý chi nhánh (quán cà phê)</a></li>
-        <li><a href="/logout/">Đăng xuất</a></li>
-    </ul>
-</body>
-</html>
+<div class="stat-grid mb-lg">
+    <div class="stat-card">
+        <div class="stat-card-icon">📦</div>
+        <div class="stat-card-value">{{ total_orders }}</div>
+        <div class="stat-card-label">Tổng đơn hàng</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-icon">📋</div>
+        <div class="stat-card-value text-success">{{ today_orders }}</div>
+        <div class="stat-card-label">Đơn hôm nay</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-icon">💰</div>
+        <div class="stat-card-value text-warning">{{ total_revenue|vnd }}</div>
+        <div class="stat-card-label">Tổng doanh thu</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-icon">📅</div>
+        <div class="stat-card-value text-blue">{{ month_revenue|vnd }}</div>
+        <div class="stat-card-label">DT tháng này</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-icon">🏬</div>
+        <div class="stat-card-value text-purple">{{ total_branches }}</div>
+        <div class="stat-card-label">Chi nhánh</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-icon">👥</div>
+        <div class="stat-card-value text-teal">{{ total_employees }}</div>
+        <div class="stat-card-label">Nhân viên</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-icon">☕</div>
+        <div class="stat-card-value text-coffee">{{ total_products }}</div>
+        <div class="stat-card-label">Sản phẩm</div>
+    </div>
+</div>
+
+<div class="dash-grid-2 mb-lg">
+    <div class="widget-card">
+        <div class="widget-header">
+            <h3 class="widget-header-title">🏆 Top Sản Phẩm Bán Chạy</h3>
+        </div>
+        <div class="widget-body">
+            {% for p in top_products %}
+            <div class="dash-list-row">
+                <span class="dash-list-name">{{ forloop.counter }}. {{ p.product__name }}</span>
+                <span class="dash-list-value text-coffee">{{ p.total_qty }} món</span>
+            </div>
+            {% empty %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📦</div>
+                <p class="empty-state-desc">Chưa có dữ liệu.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="widget-card">
+        <div class="widget-header">
+            <h3 class="widget-header-title">🏬 Chi Nhánh Tốt Nhất (Tháng)</h3>
+        </div>
+        <div class="widget-body">
+            {% for b in branch_stats %}
+            <div class="dash-list-row">
+                <span class="dash-list-name">{{ b.name }}</span>
+                <span class="dash-list-value text-success">{{ b.revenue|vnd }}</span>
+            </div>
+            {% empty %}
+            <div class="empty-state">
+                <div class="empty-state-icon">🏬</div>
+                <p class="empty-state-desc">Chưa có dữ liệu.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- CẢNH BÁO TỒN KHO -->
+{% if low_materials %}
+<div class="widget-card widget-card--alert">
+    <div class="widget-header">
+        <h3 class="dash-alert-header">
+            ⚠️ Cảnh Báo Nguyên Liệu Sắp Hết ({{ low_materials|length }})
+        </h3>
+    </div>
+    <div class="widget-body">
+        <div class="dash-alert-grid">
+            {% for m in low_materials %}
+            <div class="dash-alert-item">
+                <div class="dash-alert-item-header">
+                    <span class="dash-alert-item-name">{{ m.name }}</span>
+                    {% if m.quantity <= 0 %}
+                        <span class="badge badge-red">HẾT HÀNG</span>
+                    {% else %}
+                        <span class="badge badge-orange">SẮP HẾT</span>
+                    {% endif %}
+                </div>
+                <div class="dash-alert-item-meta">
+                    <span>Còn: <b>{{ m.quantity|floatformat:0 }} {{ m.unit }}</b></span>
+                    <span>Tối thiểu: {{ m.min_quantity|floatformat:0 }} {{ m.unit }}</span>
+                </div>
+                <!-- Progress bar -->
+                <div class="dash-progress">
+                    {% if m.min_quantity > 0 %}
+                        <div class="dash-progress-bar {% if m.quantity <= 0 %}danger{% else %}warning{% endif %}" style="width:{% widthratio m.quantity m.min_quantity 100 %}%;"></div>
+                    {% else %}
+                        <div class="dash-progress-bar danger" style="width:100%;"></div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="widget-footer">
+            <a href="{% url 'material_list' %}" class="dash-link">
+                📋 Xem tất cả nguyên liệu →
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

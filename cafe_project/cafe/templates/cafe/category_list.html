@@ -1,28 +1,45 @@
 {% extends 'cafe/base.html' %}
 
+{% block title %}Quản lý danh mục{% endblock %}
+{% block page_heading %}Quản lý danh mục{% endblock %}
+
 {% block content %}
-<h1>Loại sản phẩm</h1>
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">📚 Danh mục sản phẩm</h2>
+        <p class="page-header-desc">
+            Theo dõi các nhóm đồ uống hiện có trong hệ thống.
+        </p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Quay lại Dashboard</a>
+        <a href="{% url 'category_add' %}" class="btn btn-primary">➕ Thêm danh mục</a>
+    </div>
+</div>
 
-<a href="{% url 'category_add' %}">➕ Thêm loại</a>
-<br><br>
+{% if categories %}
+<div class="simple-card-grid-v3">
+    {% for c in categories %}
+    <div class="simple-card-v3">
+        <div class="simple-card-icon">📚</div>
+        <h3>{{ c.name }}</h3>
+        <p>Danh mục dùng để phân loại sản phẩm trên menu.</p>
 
-<table border="1">
-  <tr>
-    <th>Tên loại</th>
-    <th>Hành động</th>
-  </tr>
-
-  {% for c in categories %}
-  <tr>
-    <td>{{ c.name }}</td>
-    <td>
-      <a href="{% url 'category_edit' c.id %}">✏️ Sửa</a>
-      <a href="{% url 'category_delete' c.id %}"
-         onclick="return confirm('Xoá loại này?');">❌ Xoá</a>
-    </td>
-  </tr>
-  {% endfor %}
-</table>
-
-<a href="{% url 'admin_dashboard' %}">⬅ Quay lại</a>
+        <div class="admin-card-actions">
+            <a href="{% url 'category_edit' c.id %}" class="btn btn-secondary">✏️ Sửa</a>
+            <a href="{% url 'category_delete' c.id %}" class="btn btn-secondary"
+               onclick="return confirm('Bạn có chắc muốn xóa danh mục này không?')">
+                🗑️ Xóa
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state-box">
+    <div class="empty-icon">📚</div>
+    <h3>Chưa có danh mục</h3>
+    <p>Danh mục sản phẩm sẽ hiển thị tại đây.</p>
+</div>
+{% endif %}
 {% endblock %}

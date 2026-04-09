@@ -1,0 +1,80 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Sửa Voucher{% endblock %}
+{% block page_heading %}Sửa Voucher{% endblock %}
+
+{% block content %}
+<div class="widget-card form-mid">
+    <div class="widget-header">
+        <h3 class="widget-header-title">✏️ Sửa Voucher {{ voucher.code }}</h3>
+    </div>
+    <div class="widget-body">
+        <form method="POST">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Mã Voucher *</label>
+                <input type="text" name="code" class="form-control text-upper" value="{{ voucher.code }}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Chi nhánh áp dụng</label>
+                <select name="branch_id" class="form-control">
+                    <option value="">-- Tự do (Toàn hệ thống) --</option>
+                    {% for b in branches %}
+                        <option value="{{ b.id }}" {% if voucher.branch_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+                <small class="form-hint">Nếu chọn, khách hàng chỉ xài được khi đặt tại chi nhánh này.</small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mô tả</label>
+                <input type="text" name="description" class="form-control" value="{{ voucher.description }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Loại giảm giá *</label>
+                <select name="discount_type" class="form-control" id="discountType" onchange="updateLabel()">
+                    <option value="percent" {% if voucher.discount_type == 'percent' %}selected{% endif %}>Phần trăm (%)</option>
+                    <option value="fixed" {% if voucher.discount_type == 'fixed' %}selected{% endif %}>Số tiền cố định (VNĐ)</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" id="discountLabel">Giá trị giảm *</label>
+                    <input type="number" name="discount_value" class="form-control" value="{{ voucher.discount_value }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Đơn hàng tối thiểu (đ)</label>
+                    <input type="number" name="min_order_value" class="form-control" value="{{ voucher.min_order_value }}" min="0">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Tổng lượt dùng tối đa</label>
+                    <input type="number" name="max_uses" class="form-control" value="{{ voucher.max_uses }}" min="1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ngày hết hạn</label>
+                    <input type="datetime-local" name="expired_at" class="form-control"
+                        value="{% if voucher.expired_at %}{{ voucher.expired_at|date:'Y-m-d\TH:i' }}{% endif %}">
+                </div>
+            </div>
+            <div class="checkbox-inline">
+                <input type="checkbox" name="is_active" id="isActive" {% if voucher.is_active %}checked{% endif %} class="w-auto">
+                <label for="isActive" class="m-0">Kích hoạt</label>
+            </div>
+            <div class="text-muted text-sm voucher-usage-info">
+                Đã dùng: <strong>{{ voucher.used_count }}</strong> / {{ voucher.max_uses }} lượt
+            </div>
+            <div class="gap-row">
+                <button type="submit" class="btn btn-primary">💾 Lưu</button>
+                <a href="{% url 'voucher_list' %}" class="btn btn-outline">Hủy</a>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+function updateLabel(){
+    const type = document.getElementById('discountType').value;
+    document.getElementById('discountLabel').textContent = type === 'percent' ? 'Giá trị giảm (%) *' : 'Số tiền giảm (đ) *';
+}
+updateLabel();
+</script>
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends 'cafe/base.html' %}
+{% load currency_filters %}
+
+{% block title %}Quản lý Giao hàng{% endblock %}
+{% block page_heading %}Quản lý Giao hàng{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">🛵 Tổng quan Logistics & Giao hàng</h2>
+        <p class="page-header-desc">Quản lý, theo dõi trạng thái các đơn hàng đang được shipper xử lý.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Quay lại Dashboard</a>
+        <a href="{% url 'shipper_deliveries' %}" target="_blank" class="btn btn-primary">🗺️ Mở Bản đồ Shipper</a>
+    </div>
+</div>
+
+<div class="filter-box" style="background:#fff; padding:16px; border-radius:12px; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.04); display:flex; gap:12px; align-items:center;">
+    <span style="font-weight:600; font-size:14px;">Lọc trạng thái:</span>
+    <a href="?status=all" class="btn {% if current_status == 'all' %}btn-primary{% else %}btn-secondary{% endif %}">Tất cả</a>
+    <a href="?status=waiting" class="btn {% if current_status == 'waiting' %}btn-primary{% else %}btn-secondary{% endif %}">🕒 Chờ gán</a>
+    <a href="?status=assigned" class="btn {% if current_status == 'assigned' %}btn-primary{% else %}btn-secondary{% endif %}">📌 Đã gán</a>
+    <a href="?status=accepted" class="btn {% if current_status == 'accepted' %}btn-primary{% else %}btn-secondary{% endif %}">🙋 Đã nhận đơn</a>
+    <a href="?status=shipping" class="btn {% if current_status == 'shipping' %}btn-primary{% else %}btn-secondary{% endif %}">🚚 Đang giao</a>
+    <a href="?status=delivered" class="btn {% if current_status == 'delivered' %}btn-primary{% else %}btn-secondary{% endif %}">✅ Đã giao</a>
+    <a href="?status=failed" class="btn {% if current_status == 'failed' %}btn-primary{% else %}btn-secondary{% endif %}">⚠️ Trục trặc/Thất bại</a>
+</div>
+
+{% if orders %}
+<div class="order-table-box">
+    <table class="order-table-custom">
+        <thead>
+            <tr>
+                <th class="col-id">Mã đơn</th>
+                <th class="col-product">Khách hàng / Liên hệ</th>
+                <th class="col-branch">Điểm xuất phát (Chi nhánh)</th>
+                <th style="min-width: 180px;">Điểm đến (Địa chỉ)</th>
+                <th class="col-money">Phí giao</th>
+                <th class="col-status">Trạng thái đơn</th>
+                <th class="col-delivery">Trạng thái giao hàng</th>
+                <th>Shipper phụ trách</th>
+                <th style="min-width: 190px;">Mốc giao hàng</th>
+                <th class="col-date">Thời gian tạo</th>
+                <th class="col-action">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for o in orders %}
+            <tr>
+                <td class="col-id">#{{ o.id }}</td>
+                
+                <td class="col-product">
+                    <div style="font-weight:600; font-size:14px; color:#1a1a1a;">{{ o.customer_name }}</div>
+                    <div style="font-size:12px; color:#666; margin-top:4px;">📱 <a href="tel:{{ o.customer_phone }}" style="color:#2980b9;text-decoration:none;">{{ o.customer_phone }}</a></div>
+                </td>
+                
+                <td class="col-branch">
+                    {% if o.branch %}
+                        <b>☕ {{ o.branch.name }}</b>
+                    {% else %}
+                        <span class="muted-text">Chưa gán</span>
+                    {% endif %}
+                </td>
+                
+                <td>
+                    <div style="font-size:13px; line-height:1.4;">{{ o.customer_address|default:"Không có dữ liệu" }}</div>
+                    {% if o.customer_lat and o.customer_lng %}
+                        <div style="font-size:11px; margin-top:4px; color:#888;">GPS: {{ o.customer_lat|floatformat:4 }}, {{ o.customer_lng|floatformat:4 }}</div>
+                    {% endif %}
+                </td>
+                
+                <td class="col-money">{{ o.delivery_fee|vnd }}</td>
+                
+                <td class="col-status">
+                    {% if o.status == 'delivering' %}
+                        <span class="badge badge-blue">Đang giao</span>
+                    {% elif o.status == 'completed' %}
+                        <span class="badge badge-green">Hoàn tất</span>
+                    {% else %}
+                        <span class="badge badge-orange">{{ o.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                
+                <td class="col-delivery">
+                    {% if o.delivery_status == 'waiting' %}
+                        <span class="badge badge-orange">🕒 Chờ gán shipper</span>
+                    {% elif o.delivery_status == 'assigned' %}
+                        <span class="badge badge-light">📌 Đã gán / Chờ nhận</span>
+                    {% elif o.delivery_status == 'accepted' %}
+                        <span class="badge badge-blue">🙋 Shipper đã nhận</span>
+                    {% elif o.delivery_status == 'shipping' %}
+                        <span class="badge badge-blue">🚛 Đang giao</span>
+                    {% elif o.delivery_status == 'delivered' %}
+                        <span class="badge badge-green">📦 Giao thành công</span>
+                    {% elif o.delivery_status == 'failed' %}
+                        <span class="badge badge-red">⚠️ Giao thất bại</span>
+                    {% else %}
+                        <span class="badge badge-light">{{ o.get_delivery_status_display }}</span>
+                    {% endif %}
+                </td>
+                
+                <td>
+                    {% if o.assigned_shipper %}
+                        <div style="font-weight:600;">{{ o.assigned_shipper.username }}</div>
+                        <div style="font-size:11px; color:#777;">Lần điều phối: {{ o.delivery_attempt_count }}</div>
+                    {% else %}
+                        <span class="badge badge-light">Chưa gán</span>
+                    {% endif %}
+                </td>
+
+                <td style="font-size:12px; line-height:1.5;">
+                    {% if o.assigned_at %}<div>📌 Gán: {{ o.assigned_at|date:"H:i d/m" }}</div>{% endif %}
+                    {% if o.accepted_at %}<div>🙋 Nhận: {{ o.accepted_at|date:"H:i d/m" }}</div>{% endif %}
+                    {% if o.started_delivery_at %}<div>🚚 Bắt đầu: {{ o.started_delivery_at|date:"H:i d/m" }}</div>{% endif %}
+                    {% if o.delivered_at %}<div>✅ Xong: {{ o.delivered_at|date:"H:i d/m" }}</div>{% endif %}
+                    {% if o.failed_at %}<div style="color:#c0392b;">⚠️ Lỗi: {{ o.failed_at|date:"H:i d/m" }}</div>{% endif %}
+                    {% if o.failure_reason %}
+                        <div style="margin-top:4px; color:#c0392b;">Lý do: {{ o.failure_reason }}</div>
+                    {% endif %}
+                </td>
+                
+                <td class="col-date">{{ o.created_at|date:"H:i d/m/Y" }}</td>
+                
+                <td class="col-action">
+                    <div class="action-group action-group-main">
+                        <a href="{% url 'admin_order_detail' o.id %}" class="action-btn neutral">🔍 Chi tiết</a>
+                    </div>
+                    {% if o.delivery_status != 'delivered' and o.status != 'completed' and o.status != 'cancelled' and o.delivery_status != 'shipping' %}
+                    <form method="post" action="{% url 'admin_assign_shipper' o.id %}" style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
+                        {% csrf_token %}
+                        <select name="shipper_id" class="form-input" required style="min-width:170px;">
+                            <option value="">-- Chọn shipper --</option>
+                            {% for shipper in shippers %}
+                                <option value="{{ shipper.id }}" {% if o.assigned_shipper_id == shipper.id %}selected{% endif %}>
+                                    {{ shipper.username }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="action-btn edit">
+                            {% if o.assigned_shipper %}🔁 Gán lại shipper{% else %}📌 Gán shipper{% endif %}
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state-box">
+    <div class="empty-icon">🛵</div>
+    <h3>Không có đơn hàng nào ở trạng thái này</h3>
+    <p>Chưa phát sinh hoạt động giao hàng theo bộ lọc bạn chọn.</p>
+</div>
+{% endif %}
+{% endblock %}

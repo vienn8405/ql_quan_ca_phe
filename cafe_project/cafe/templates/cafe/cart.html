@@ -1,58 +1,834 @@
 {% extends 'cafe/base.html' %}
+{% load currency_filters %}
+
+{% block title %}Giỏ hàng{% endblock %}
+{% block page_heading %}Giỏ hàng của bạn{% endblock %}
 
 {% block content %}
-<h1>🛒 Giỏ hàng</h1>
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">🛒 Kiểm tra đơn hàng trước khi đặt</h2>
+        <p class="page-header-desc">
+            Bạn có thể cập nhật số lượng, xóa món hoặc xác nhận đặt hàng ngay tại đây.
+        </p>
+    </div>
+</div>
 
 {% if cart %}
-<table border="1" cellpadding="6">
-    <tr>
-        <th>Sản phẩm</th>
-        <th>Giá</th>
-        <th>Số lượng</th>
-        <th>Thành tiền</th>
-        <th>Hành động</th>
-    </tr>
+<div class="cart-layout-v2">
+    <div class="cart-left">
+        <div class="cart-count-header">
+            <h3>☕ Món trong giỏ</h3>
+            <span class="cart-count-badge">{{ cart.items|length }} món</span>
+        </div>
 
-    {% for pid, item in cart.items %}
-    <tr>
-        <td>{{ item.name }}</td>
-        <td>{{ item.price }}</td>
-        <td>
-            <a href="{% url 'cart_update' pid %}?action=decrease">➖</a>
-            {{ item.quantity }}
-            <a href="{% url 'cart_update' pid %}?action=increase">➕</a>
-        </td>
-        <td>{{ item.subtotal }}đ</td>
-        <td>
-            <a href="{% url 'cart_remove' pid %}">❌ Xóa</a>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
+        {% for pid, item in cart.items %}
+        <div class="cart-item-v2">
+            <div class="cart-item-media">
+                {% if item.image %}
+                    <img src="{{ item.image }}" alt="{{ item.name }}" class="cart-thumb-v2">
+                {% else %}
+                    <div class="cart-noimg-v2">☕</div>
+                {% endif %}
+            </div>
 
-<h3>Tổng tiền: {{ total }}đ</h3>
-<form method="post" action="{% url 'user_order_create' %}">
+            <div class="cart-item-content">
+                <div class="cart-item-top">
+                    <div>
+                        <h3 class="cart-name-v2">{{ item.name }}</h3>
+                        <p class="cart-price-unit">Đơn giá: <strong>{{ item.price|vnd }}</strong></p>
+                        <p class="cart-subtotal">{{ item.subtotal|vnd }}</p>
+                    </div>
+
+                    <div class="cart-qty-badge">
+                        × {{ item.quantity }}
+                    </div>
+                </div>
+
+                <form method="post" action="{% url 'cart_update' pid %}" class="cart-form-v2">
+                    {% csrf_token %}
+                    <input type="number" name="quantity" value="{{ item.quantity }}" min="1" required class="qty-input-v2">
+                    <button type="submit" class="btn btn-primary">Cập nhật</button>
+                    <a href="{% url 'cart_remove' pid %}" class="btn btn-secondary"
+                       onclick="return confirm('Bạn có chắc muốn xóa sản phẩm này khỏi giỏ không?')">
+                        🗑️ Xóa
+                    </a>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+
+    <div class="cart-right">
+        <div class="summary-card-v2">
+            <div class="summary-top">
+                <span class="summary-kicker">Order Summary</span>
+                <h3>Tóm tắt đơn hàng</h3>
+            </div>
+
+            <div class="summary-total-box">
+                <span>Tổng tiền</span>
+                <strong>{{ total|vnd }}</strong>
+            </div>
+
+            <form method="post" action="{% url 'user_order_create' %}">
     {% csrf_token %}
 
-    <h3>Chọn hình thức thanh toán:</h3>
-    <label>
+    <hr class="summary-divider">
+
+    {% if reservation %}
+    <div class="cart-receipt">
+        <h4 class="cart-receipt-title">📌 Biên lai Chọn Món Trước</h4>
+        <div class="cart-receipt-body">
+            <p><strong>Khách hàng:</strong> {{ reservation.customer_name }} - {{ reservation.customer_phone }}</p>
+            <p><strong>Chi nhánh:</strong> {{ reservation.branch.name }}</p>
+            <p><strong>Thời gian hẹn:</strong> {{ reservation.time }} ngày {{ reservation.date|date:"d/m/Y" }}</p>
+            {% if reservation.table %}
+            <p><strong>Vị trí bàn:</strong> <span class="text-highlight">{{ reservation.table.name }}</span></p>
+            {% endif %}
+        </div>
+        <div class="cart-receipt-footer">
+            ⚠️ Yêu cầu đặt cọc 30% giá trị gọi món để giữ bàn.
+        </div>
+    </div>
+
+    <label>Ghi chú thêm (Tùy chọn)</label>
+    <textarea name="note" class="form-input" placeholder="Ghi chú thêm về món ăn..."></textarea>
+    {% else %}
+
+    <span class="summary-section-label">👤 Thông tin khách hàng</span>
+    <div class="checkout-fields">
+    <label>Tên khách hàng</label>
+    <input type="text" name="customer_name" class="form-input" required>
+
+    <label>Số điện thoại <span id="loyaltyBadge" style="display:none;font-size:12px;padding:3px 8px;border-radius:4px;color:#fff;margin-left:8px;font-weight:bold;"></span></label>
+    <input type="text" name="customer_phone" id="customer_phone" class="form-input" placeholder="Nhập để kiểm tra ưu đãi thành viên..." onchange="checkLoyalty()" required>
+    <div id="loyaltyMsg" style="font-size:13px;margin-top:-8px;margin-bottom:12px;display:none;"></div>
+
+    <label>Email (để nhận xác nhận đơn hàng)</label>
+    <input type="email" name="customer_email" class="form-input" placeholder="VD: email@example.com">
+
+    <label>Ghi chú</label>
+    <textarea name="note" class="form-input"></textarea>
+
+    </div>
+
+    <hr class="summary-divider">
+    <span class="summary-section-label">📦 Loại đơn hàng</span>
+    <div class="checkout-fields">
+    <label>Loại đơn hàng</label>
+    <select name="order_type" id="order_type" class="form-input">
+        <option value="takeaway">Mang đi</option>
+        <option value="delivery">Giao hàng</option>
+        <option value="dine_in">Tại quán</option>
+    </select>
+
+    <div id="branch-field">
+    <label>Chi nhánh nhận đơn</label>
+    <select name="branch_id" id="branch_id" class="form-input">
+        <option value="">-- Chọn chi nhánh --</option>
+        {% for b in branches %}
+            <option value="{{ b.id }}">{{ b.name }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<div id="delivery-fields">
+    <label>Địa chỉ giao hàng</label>
+    <input type="text" name="customer_address" id="customer_address" class="form-input" placeholder="Nhập địa chỉ giao hàng...">
+
+    <!-- Hidden inputs cho tọa độ (tự fill từ bản đồ) -->
+    <input type="hidden" name="customer_lat" id="customer_lat">
+    <input type="hidden" name="customer_lng" id="customer_lng">
+    <input type="hidden" name="selected_delivery_branch_id" id="selected_delivery_branch_id" value="">
+
+    <div class="cart-btn-row">
+        <button type="button" class="btn btn-secondary" onclick="getLocation()">
+            📍 Lấy vị trí hiện tại
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="geocodeAddress()">
+            🔍 Tìm từ địa chỉ
+        </button>
+    </div>
+
+    <!-- Bản đồ mini kiểm tra vùng giao hàng -->
+    <div class="cart-map-card">
+        <div class="cart-map-top">
+            <span class="cart-map-title">🗺️ Chọn vị trí giao hàng trên bản đồ</span>
+            <span class="cart-map-hint">Click vào bản đồ để chọn</span>
+        </div>
+        <div id="delivery-map"></div>
+
+        <!-- Kết quả kiểm tra vùng giao hàng -->
+        <div id="delivery-check-result" class="delivery-check-result" style="display:none;">
+        </div>
+    </div>
+</div>
+</div>
+    {% endif %}
+
+    <hr class="summary-divider">
+    <span class="summary-section-label">💳 Thanh toán</span>
+
+    <label class="payment-label">Chọn hình thức thanh toán</label>
+
+    {% if reservation %}
+    <label class="payment-option">
+        <input type="radio" name="payment_method" value="bank" checked>
+        <span>💳 Chuyển khoản (Bắt buộc để Đặt cọc)</span>
+    </label>
+    <div class="cart-bank-hint">
+        Vui lòng thanh toán qua quét mã QR ở màn hình tiếp theo để hoàn tất giữ chỗ.
+    </div>
+    {% else %}
+    <label class="payment-option">
         <input type="radio" name="payment_method" value="cash" checked>
-        💵 Tiền mặt
-    </label><br>
+        <span>💵 Tiền mặt</span>
+    </label>
 
-    <label>
+    <label class="payment-option">
         <input type="radio" name="payment_method" value="bank">
-        💳 Chuyển khoản
-    </label><br><br>
+        <span>💳 Chuyển khoản</span>
+    </label>
+    {% endif %}
 
-    <button type="submit">✅ Đặt hàng</button>
+    <!-- VOUCHER SECTION -->
+    <div class="cart-voucher-box">
+        <label class="cart-voucher-label">🎟️ Mã giảm giá (Voucher)</label>
+        <div class="cart-voucher-row">
+            <input type="text" id="voucherCode" class="form-input"
+                placeholder="Nhập mã voucher...">
+            <button type="button" onclick="applyVoucher()" class="cart-voucher-apply">
+                Áp dụng
+            </button>
+        </div>
+        <div id="voucherMsg" class="mt-sm"></div>
+    </div>
+    <!-- Hidden fields để submit cùng với form -->
+    <input type="hidden" name="voucher_code" id="voucherCodeHidden" value="">
+    <input type="hidden" name="discount_amount" id="discountAmountHidden" value="0">
+
+    {% if reservation %}
+    <button type="submit" class="btn btn-success summary-btn"
+            onclick="return confirm('Xác nhận chọn món và cho phép ghi nhận Đặt cọc 30% tổng hóa đơn?')">
+        💳 Hoàn tất Chọn Món & Đặt Cọc (30%)
+    </button>
+    {% else %}
+    <button type="submit" class="btn btn-success summary-btn"
+            onclick="return confirm('Bạn có chắc muốn đặt hàng không?')">
+        ✅ Đặt hàng ngay
+    </button>
+    {% endif %}
 </form>
 
+            <div class="summary-links">
+                <a href="{% url 'user_menu' %}" class="btn btn-secondary">← Quay lại menu</a>
+                <a href="{% url 'user_order_detail' %}" class="btn btn-secondary">📦 Xem đơn hàng</a>
+            </div>
+        </div>
+    </div>
+</div>
 {% else %}
-<p>Giỏ hàng đang trống</p>
+<div class="empty-state-box">
+    <div class="empty-icon">🛒</div>
+    <h3>Giỏ hàng đang trống</h3>
+    <p>Bạn hãy quay lại menu để chọn món trước nhé.</p>
+    <a href="{% url 'user_menu' %}" class="btn btn-primary">📋 Xem menu</a>
+</div>
 {% endif %}
+<!-- Leaflet CSS/JS cho bản đồ giao hàng -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<a href="{% url 'user_order_detail' %}">📦 Xem đơn hàng</a>
+<style>
+@keyframes pulsate {
+    0% { transform: scale(0.5); opacity: 1; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+.located-animation {
+    width: 20px;
+    height: 20px;
+    border: 2px solid white;
+    border-radius: 50%;
+    background: #2a93ee;
+    box-shadow: 0 0 10px rgba(42, 147, 238, 0.8), 0 0 0 2px rgba(42, 147, 238, 0.4);
+    animation: pulsate 1.5s ease-out infinite;
+}
+.custom-context-menu { position: absolute; z-index: 10000; background: white; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); min-width: 200px; padding: 6px 0; font-family: inherit; display: none; margin: 0; }
+.custom-context-menu li { list-style: none; padding: 10px 16px; cursor: pointer; font-size: 14px; color: #333; transition: background 0.2s; margin: 0; border-bottom: 1px solid #eee; }
+.custom-context-menu li:last-child { border-bottom: none; }
+.custom-context-menu li:hover { background: #fdf8e4; color: #d35400; }
+</style>
 
-<a href="{% url 'user_menu' %}">⬅ Quay lại menu</a>
+<script>
+// ==================== BẢN ĐỒ GIAO HÀNG ====================
+let deliveryMap = null;
+let deliveryMarker = null;
+let branchData = [];           // Lưu thông tin tất cả chi nhánh
+let branchMarkersMap = {};     // Lưu marker theo branch name
+let activeBranchCircle = null; // Chỉ 1 circle active tại 1 thời điểm
+let mapInitialized = false;
+
+// State cho Manual Branch Selection
+let manualBranchMode = false;
+let selectedBranchId = null;
+let manualBranchData = null;
+
+function initDeliveryMap() {
+    if (mapInitialized) {
+        deliveryMap.invalidateSize();
+        return;
+    }
+
+    const mapEl = document.getElementById('delivery-map');
+    if (!mapEl) return;
+
+    deliveryMap = L.map('delivery-map').setView([10.762622, 106.660172], 12);
+
+    L.tileLayer('http://mt0.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}', {
+        maxZoom: 19,
+        attribution: '&copy; Google Maps'
+    }).addTo(deliveryMap);
+
+    const LocateControl = L.Control.extend({
+        options: { position: "topleft" },
+        onAdd: function (map) {
+            const container = L.DomUtil.create("div", "leaflet-bar leaflet-control leaflet-control-custom");
+            container.style.backgroundColor = 'white';
+            container.style.width = '34px';
+            container.style.height = '34px';
+            container.style.cursor = 'pointer';
+            container.style.display = 'flex';
+            container.style.justifyContent = 'center';
+            container.style.alignItems = 'center';
+            container.title = "Định vị của tôi";
+            container.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg"><path d="M0 0h24v24H24V0z" fill="none"/><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0-2c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6 2.69-6 6-6zm0-6v2h-1v-2h1zm0 20v2h-1v-2h1zm-10-10h2v-1h-2v1zm20 0h2v-1h-2v1zm-16.95-7.05l1.41 1.41-1.41-1.41zm12.02 12.02l1.41 1.41-1.41-1.41zm-12.02 0l-1.41 1.41 1.41-1.41zm12.02-12.02l-1.41-1.41 1.41 1.41z" fill="#444"/></svg>';
+            container.onclick = function(e){
+                L.DomEvent.stopPropagation(e);
+                getLocation();
+            }
+            container.onmouseover = function() { this.style.backgroundColor = '#f4f4f4'; }
+            container.onmouseout = function() { this.style.backgroundColor = 'white'; }
+            return container;
+        }
+    });
+    deliveryMap.addControl(new LocateControl());
+
+    const cartMenu = document.createElement('ul');
+    cartMenu.className = 'custom-context-menu';
+    document.body.appendChild(cartMenu);
+    let rightClickLatLng = null;
+
+    deliveryMap.on('contextmenu', function(e) {
+        rightClickLatLng = e.latlng;
+        cartMenu.style.display = 'block';
+        cartMenu.style.left = e.originalEvent.pageX + 'px';
+        cartMenu.style.top = e.originalEvent.pageY + 'px';
+        
+        cartMenu.innerHTML = `
+            <li onclick="setDeliveryPoint(rightClickLatLng.lat, rightClickLatLng.lng); reverseGeocode(rightClickLatLng.lat, rightClickLatLng.lng); document.querySelector('.custom-context-menu').style.display='none'">📍 Chọn giao hàng tới đây</li>
+            <li onclick="alert('Tọa độ: ' + rightClickLatLng.lat.toFixed(6) + ', ' + rightClickLatLng.lng.toFixed(6)); document.querySelector('.custom-context-menu').style.display='none'">👁️ Xem tọa độ</li>
+            <li onclick="document.querySelector('.custom-context-menu').style.display='none'">❌ Đóng</li>
+        `;
+    });
+
+    const hideCartMenu = () => { cartMenu.style.display = 'none'; };
+    deliveryMap.on('click', hideCartMenu);
+    deliveryMap.on('dragstart', hideCartMenu);
+    deliveryMap.on('zoomstart', hideCartMenu);
+    document.addEventListener('click', hideCartMenu);
+
+    // Load chi nhánh từ API có sẵn
+    fetch("{% url 'branches_geojson' %}")
+        .then(r => r.json())
+        .then(data => {
+            const features = data.features || [];
+            features.forEach(f => {
+                const lat = f.geometry.coordinates[1];
+                const lng = f.geometry.coordinates[0];
+                const props = f.properties;
+                const radius = props.delivery_radius || 0;
+
+                // Lưu dữ liệu branch
+                branchData.push({
+                    id: props.id,
+                    name: props.name,
+                    address: props.address,
+                    lat: lat,
+                    lng: lng,
+                    delivery_radius: radius
+                });
+
+                // Marker chi nhánh (KHÔNG add circle hàng loạt)
+                const popupHtml = `
+                    <div style="text-align:center; min-width: 160px;">
+                        <b>${props.name}</b><br>
+                        <span style="font-size:12px;color:#666;">${props.address}</span><br>
+                        <span style="font-size:12px;">Bán kính giao: <b>${radius}m</b></span><br>
+                        <button type="button" class="btn btn-sm btn-primary mt-sm" style="width:100%; margin-top:8px; padding: 4px 8px;" onclick="selectManualBranch(${props.id})">📍 Chọn chi nhánh này</button>
+                    </div>
+                `;
+                const marker = L.marker([lat, lng])
+                    .bindPopup(popupHtml)
+                    .addTo(deliveryMap);
+                branchMarkersMap[props.name] = marker;
+            });
+
+            // Fit bounds nếu có chi nhánh
+            if (features.length > 0) {
+                const latlngs = features.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]]);
+                deliveryMap.fitBounds(latlngs, {padding: [30, 30]});
+            }
+        });
+
+    // Click bản đồ để chọn vị trí giao
+    deliveryMap.on('click', function(e) {
+        setDeliveryPoint(e.latlng.lat, e.latlng.lng);
+        // Tự điền địa chỉ khi click map
+        reverseGeocode(e.latlng.lat, e.latlng.lng);
+    });
+
+    mapInitialized = true;
+}
+
+// ==================== HELPER: HIỂN THỊ 1 CIRCLE ACTIVE ====================
+function showActiveBranchCircle(branch) {
+    // Xóa circle cũ nếu có
+    if (activeBranchCircle) {
+        deliveryMap.removeLayer(activeBranchCircle);
+        activeBranchCircle = null;
+    }
+
+    // Chỉ add circle nếu branch có delivery_radius hợp lệ
+    if (branch && branch.delivery_radius > 0) {
+        activeBranchCircle = L.circle([branch.lat, branch.lng], {
+            radius: branch.delivery_radius,
+            color: '#7b4b2a',
+            weight: 2,
+            fillColor: '#c08a45',
+            fillOpacity: 0.10,
+            dashArray: '5,5'
+        }).addTo(deliveryMap);
+        activeBranchCircle.bindTooltip(
+            `${branch.name} (${branch.delivery_radius}m)`,
+            {direction: 'top'}
+        );
+    }
+}
+
+// ==================== HELPER: REVERSE GEOCODING ====================
+function reverseGeocode(lat, lng) {
+    const addressInput = document.getElementById('customer_address');
+    if (!addressInput) return;
+
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=vi`)
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.display_name) {
+                addressInput.value = data.display_name;
+            }
+        })
+        .catch(err => {
+            console.warn('Reverse geocode failed:', err);
+        });
+}
+
+function setDeliveryPoint(lat, lng) {
+    // Cập nhật hidden inputs
+    document.getElementById('customer_lat').value = lat.toFixed(6);
+    document.getElementById('customer_lng').value = lng.toFixed(6);
+
+    // Di chuyển / tạo marker khách
+    if (deliveryMarker) {
+        deliveryMarker.setLatLng([lat, lng]);
+    } else {
+        deliveryMarker = L.marker([lat, lng], {
+            icon: L.divIcon({
+                html: '<div class="located-animation"></div>',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10],
+                className: ''
+            })
+        }).addTo(deliveryMap);
+    }
+    deliveryMarker.bindPopup('📍 Vị trí giao hàng của bạn').openPopup();
+
+    // Kiểm tra vùng giao hàng
+    checkDeliveryZone(lat, lng);
+}
+
+function selectManualBranch(branchId) {
+    const branch = branchData.find(b => b.id === branchId);
+    if (!branch) return;
+
+    manualBranchMode = true;
+    selectedBranchId = branch.id;
+    manualBranchData = branch;
+    document.getElementById('selected_delivery_branch_id').value = branch.id;
+
+    deliveryMap.closePopup();
+
+    const latRaw = document.getElementById('customer_lat').value;
+    const lngRaw = document.getElementById('customer_lng').value;
+    
+    if (latRaw && lngRaw) {
+        checkDeliveryZone(parseFloat(latRaw), parseFloat(lngRaw));
+    } else {
+        showActiveBranchCircle(branch);
+        updateResultPanelForManualMode(null, branch, false);
+    }
+}
+
+function returnToAutoMode() {
+    manualBranchMode = false;
+    selectedBranchId = null;
+    manualBranchData = null;
+    document.getElementById('selected_delivery_branch_id').value = "";
+
+    const latRaw = document.getElementById('customer_lat').value;
+    const lngRaw = document.getElementById('customer_lng').value;
+    
+    if (latRaw && lngRaw) {
+        checkDeliveryZone(parseFloat(latRaw), parseFloat(lngRaw));
+    } else {
+        document.getElementById('delivery-check-result').style.display = 'none';
+        if (activeBranchCircle) {
+            deliveryMap.removeLayer(activeBranchCircle);
+            activeBranchCircle = null;
+        }
+    }
+}
+
+function updateResultPanelForManualMode(dist, branch, isValid) {
+    const resultEl = document.getElementById('delivery-check-result');
+    resultEl.style.display = 'block';
+    
+    const autoBtnHtml = `
+        <div style="margin-top:10px; text-align:center;">
+            <button type="button" class="btn btn-sm btn-secondary" style="font-size:12px; padding:6px 12px; background:#fff; border:1px solid #ccc; border-radius:4px;" onclick="returnToAutoMode()">🔄 Quay về tự động chọn quán</button>
+        </div>
+    `;
+
+    if (dist === null) {
+        resultEl.style.background = '#e3f2fd';
+        resultEl.innerHTML = `
+            🛠️ <b>Chế độ chọn thủ công</b><br>
+            <span style="color:#1565c0;">Đã ghi nhận chọn quán <b>${branch.name}</b>. Hãy click lên bản đồ địa điểm nhận hàng.</span>
+            ${autoBtnHtml}
+        `;
+        return;
+    }
+
+    let distText = dist >= 1000 ? (dist/1000).toFixed(1) + ' km' : Math.round(dist) + ' m';
+
+    if (!isValid) {
+        resultEl.style.background = '#fdecea';
+        resultEl.innerHTML = `
+            🛠️ <b>Chế độ chọn thủ công</b><br>
+            ❌ <b style="color:#c62828;">Ngoài vùng giao hàng!</b><br>
+            <span style="color:#c62828;">
+                Chi nhánh <b>${branch.name}</b> (cách ${distText}) chỉ phục vụ tối đa ${branch.delivery_radius}m.<br>
+                <i>Vui lòng chọn quán gần hơn hoặc quay về Tự động.</i>
+            </span>
+            ${autoBtnHtml}
+        `;
+    } else {
+        let fee = 20000;
+        if (dist <= 1000) fee = 10000;
+        else if (dist <= 3000) fee = 15000;
+
+        resultEl.style.background = '#e3f2fd';
+        resultEl.innerHTML = `
+            🛠️ <b>Chế độ chọn thủ công</b><br>
+            ✅ <b style="color:#2e7d32;">Đang dùng chi nhánh bạn đã chọn!</b><br>
+            <span style="color:#1565c0;">
+                🏬 Chi nhánh: <b>${branch.name}</b><br>
+                📏 Khoảng cách: <b>${distText}</b><br>
+                💰 Phí giao hàng (dự kiến): <b>${fee.toLocaleString('vi-VN')}đ</b>
+            </span>
+            ${autoBtnHtml}
+        `;
+    }
+}
+
+function checkDeliveryZone(lat, lng) {
+    const resultEl = document.getElementById('delivery-check-result');
+    resultEl.style.display = 'block';
+
+    if (manualBranchMode && manualBranchData) {
+        resultEl.style.background = '#f8f3ee';
+        resultEl.innerHTML = '⏳ Đang kiểm tra chi nhánh đã chọn...';
+
+        const branch = manualBranchData;
+        const customerLatLng = L.latLng(lat, lng);
+        const branchLatLng = L.latLng(branch.lat, branch.lng);
+        const dist = customerLatLng.distanceTo(branchLatLng);
+
+        const isValid = dist <= branch.delivery_radius;
+        updateResultPanelForManualMode(dist, branch, isValid);
+        showActiveBranchCircle(branch);
+        
+        if (branchMarkersMap[branch.name]) {
+            branchMarkersMap[branch.name].openPopup();
+        }
+        return;
+    }
+
+    resultEl.style.background = '#f8f3ee';
+    resultEl.innerHTML = '⏳ Đang tự động tìm chi nhánh tối ưu...';
+
+    fetch(`{% url 'api_optimal_branch' %}?lat=${lat}&lng=${lng}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.found) {
+                // Ngoài vùng giao hàng → xóa circle active
+                if (activeBranchCircle) {
+                    deliveryMap.removeLayer(activeBranchCircle);
+                    activeBranchCircle = null;
+                }
+
+                resultEl.style.background = '#fdecea';
+                resultEl.innerHTML = `
+                    🤖 <b>Chế độ tự động</b><br>
+                    ❌ <b>Ngoài vùng giao hàng!</b><br>
+                    <span style="color:#c62828;">
+                        ${data.message || 'Không có chi nhánh nào phục vụ vị trí này.'}<br>
+                        <i>Vui lòng chọn vị trí gần hơn hoặc đổi sang Mang đi.</i>
+                    </span>
+                `;
+                return;
+            }
+
+            const b = data.branch;
+            const dist = data.distance;
+            const fee = data.fee;
+            const reason = data.reason;
+            const candidates = data.candidates || [];
+
+            let distText = dist >= 1000 ? (dist/1000).toFixed(1) + ' km' : Math.round(dist) + ' m';
+
+            // Tìm branch tương ứng trong branchData → show circle
+            const matchedBranch = branchData.find(bd => bd.name === b.name);
+            if (matchedBranch) {
+                showActiveBranchCircle(matchedBranch);
+            }
+
+            // Mở popup marker của branch tối ưu
+            if (branchMarkersMap[b.name]) {
+                branchMarkersMap[b.name].openPopup();
+            }
+
+            let candidatesHtml = '';
+            if (candidates.length > 1) {
+                candidatesHtml = `
+                    <div style="margin-top:8px;padding-top:6px;border-top:1px solid #c8e6c9;font-size:12px;color:#555;">
+                        📊 <b>${candidates.length} chi nhánh</b> có thể phục vụ:
+                        <ul style="margin:4px 0 0 16px;padding:0;">
+                            ${candidates.map(c => `
+                                <li>${c.name} — ${c.distance >= 1000 ? (c.distance/1000).toFixed(1) + 'km' : Math.round(c.distance) + 'm'}
+                                ${c.today_orders > 0 ? `(${c.today_orders} đơn hôm nay)` : ''}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            resultEl.style.background = '#e8f5e9';
+            resultEl.innerHTML = `
+                🤖 <b>Chế độ tự động</b><br>
+                ✅ <b>Có thể giao hàng!</b><br>
+                <span style="color:#2e7d32;">
+                    🏬 Chi nhánh: <b>${b.name}</b><br>
+                    📏 Khoảng cách: <b>${distText}</b><br>
+                    💰 Phí giao hàng: <b>${fee.toLocaleString('vi-VN')}đ</b><br>
+                    💡 Lý do: <i>${reason}</i>
+                </span>
+                ${candidatesHtml}
+            `;
+        })
+        .catch(() => {
+            resultEl.style.background = '#fff3e0';
+            resultEl.innerHTML = '⚠️ Lỗi kiểm tra vùng giao hàng. Vui lòng thử lại.';
+        });
+}
+
+// ==================== GPS + GEOCODE ====================
+function getLocation() {
+    if (!navigator.geolocation) {
+        alert("Trình duyệt không hỗ trợ định vị.");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            document.getElementById("customer_lat").value = lat;
+            document.getElementById("customer_lng").value = lng;
+
+            // Nếu map đã init, đặt marker + kiểm tra
+            if (deliveryMap) {
+                deliveryMap.setView([lat, lng], 15);
+                setDeliveryPoint(lat, lng);
+                // Tự điền địa chỉ bằng reverse geocoding
+                reverseGeocode(lat, lng);
+            }
+        },
+        function(error) {
+            alert("Không lấy được vị trí hiện tại.");
+        }
+    );
+}
+
+function geocodeAddress() {
+    const address = document.getElementById('customer_address').value.trim();
+    if (!address) {
+        alert('Vui lòng nhập địa chỉ giao hàng trước.');
+        return;
+    }
+
+    const resultEl = document.getElementById('delivery-check-result');
+    if (resultEl) {
+        resultEl.style.display = 'block';
+        resultEl.style.background = '#f8f3ee';
+        resultEl.innerHTML = '⏳ Đang tìm tọa độ từ địa chỉ...';
+    }
+
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=vn&limit=1`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.length === 0) {
+                if (resultEl) {
+                    resultEl.style.background = '#fff3e0';
+                    resultEl.innerHTML = '⚠️ Không tìm thấy địa chỉ. Hãy thử click trực tiếp trên bản đồ.';
+                }
+                return;
+            }
+            const lat = parseFloat(data[0].lat);
+            const lng = parseFloat(data[0].lon);
+
+            if (deliveryMap) {
+                deliveryMap.setView([lat, lng], 15);
+                setDeliveryPoint(lat, lng);
+            }
+        })
+        .catch(() => {
+            if (resultEl) {
+                resultEl.style.background = '#fdecea';
+                resultEl.innerHTML = '❌ Lỗi tìm địa chỉ. Hãy click trực tiếp trên bản đồ.';
+            }
+        });
+}
+
+// ==================== TOGGLE DELIVERY / MAP ====================
+function toggleDeliveryFields() {
+    const orderTypeEl = document.getElementById("order_type");
+    if (!orderTypeEl) return;
+
+    const orderType = orderTypeEl.value;
+    const deliveryFields = document.getElementById("delivery-fields");
+    const branchField = document.getElementById("branch-field");
+
+    if (orderType === "delivery") {
+        if (deliveryFields) deliveryFields.style.display = "block";
+        if (branchField) branchField.style.display = "none";
+        // Init map khi lần đầu mở delivery
+        setTimeout(initDeliveryMap, 100);
+    } else {
+        if (deliveryFields) deliveryFields.style.display = "none";
+        if (branchField) branchField.style.display = "block";
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    toggleDeliveryFields();
+    const orderTypeEl = document.getElementById("order_type");
+    if (orderTypeEl) {
+        orderTypeEl.addEventListener("change", toggleDeliveryFields);
+    }
+});
+
+// ==================== LOYALTY ====================
+function checkLoyalty() {
+    const phone = document.getElementById("customer_phone").value.trim();
+    const badge = document.getElementById("loyaltyBadge");
+    const msg = document.getElementById("loyaltyMsg");
+    
+    if (phone.length < 9) {
+        badge.style.display = "none";
+        msg.style.display = "none";
+        return;
+    }
+
+    fetch("{% url 'api_check_loyalty' %}?phone=" + phone)
+    .then(res => res.json())
+    .then(data => {
+        if (data.valid) {
+            badge.style.display = "inline-block";
+            badge.innerText = "Hạng " + data.rank;
+            
+            if(data.rank === 'Vàng') badge.style.background = "#ffd700";
+            else if(data.rank === 'Bạc') badge.style.background = "#c0c0c0";
+            else badge.style.background = "#cd7f32";
+            
+            msg.style.display = "block";
+            msg.innerHTML = `<span style="color:#28a745;">Xin chào <strong>${data.name || 'khách hàng thân thiết'}</strong>! Bạn có <strong>${data.points} điểm</strong>.</span>`;
+            if (data.discount_percent > 0) {
+                msg.innerHTML += `<br><span style="color:#c44;">Đặc quyền hạng ${data.rank}: Giảm thêm ${data.discount_percent}% toàn bộ hoá đơn.</span>`;
+            }
+        } else {
+            badge.style.display = "none";
+            msg.style.display = "none";
+        }
+    })
+    .catch(err => console.error(err));
+}
+
+// ==================== VOUCHER ====================
+function applyVoucher() {
+    const code = document.getElementById('voucherCode').value.trim().toUpperCase();
+    const msgEl = document.getElementById('voucherMsg');
+    const orderTotal = Number(`{{ total|default:0 }}`);
+
+    if (!code) {
+        msgEl.innerHTML = '<span style="color:#dc3545;">Vui lòng nhập mã voucher.</span>';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('code', code);
+    formData.append('order_total', orderTotal);
+    
+    const branchSelect = document.getElementById('branch_id');
+    if (branchSelect) {
+        formData.append('branch_id', branchSelect.value);
+    }
+    
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+    fetch("{% url 'apply_voucher' %}", {
+        method: 'POST',
+        body: formData,
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.valid) {
+            document.getElementById('voucherCodeHidden').value = code;
+            document.getElementById('discountAmountHidden').value = data.discount;
+            msgEl.innerHTML = `
+                <span style="color:#28a745;">✅ Áp dụng thành công: <strong>${data.description || code}</strong></span><br>
+                <span style="color:#4a2c1d;">Giảm: <strong>${data.discount.toLocaleString('vi-VN')}đ</strong> &rarr; Còn lại: <strong>${data.final_total.toLocaleString('vi-VN')}đ</strong></span>
+            `;
+        } else {
+            document.getElementById('voucherCodeHidden').value = '';
+            document.getElementById('discountAmountHidden').value = '0';
+            msgEl.innerHTML = `<span style="color:#dc3545;">❌ ${data.error}</span>`;
+        }
+    })
+    .catch(() => {
+        msgEl.innerHTML = '<span style="color:#dc3545;">❌ Lỗi kết nối, vui lòng thử lại.</span>';
+    });
+}
+</script>
 {% endblock %}

@@ -1,0 +1,133 @@
+{% extends 'cafe/base.html' %}
+
+{% block title %}Lịch sử kho{% endblock %}
+{% block page_heading %}Lịch sử kho{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">Lịch sử thay đổi kho</h2>
+        <p class="page-header-desc">Theo dõi các lần nhập, xuất, pha chế và bán hàng theo từng chi nhánh.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Quay lại Dashboard</a>
+    </div>
+</div>
+
+<div class="section-box" style="margin-bottom:16px;">
+    <form method="get" class="admin-form-v3">
+        <div class="form-grid-v3">
+            <div class="form-group-v3">
+                <label>Chi nhánh</label>
+                <select name="branch_id">
+                    <option value="">Tất cả chi nhánh</option>
+                    {% for branch in branches %}
+                    <option value="{{ branch.id }}" {% if selected_branch_id == branch.id|stringformat:"s" %}selected{% endif %}>
+                        {{ branch.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-action-row-v3">
+            <button type="submit" class="btn btn-primary">Lọc log</button>
+            <a href="{% url 'stocklog_list' %}" class="btn btn-secondary">Xóa bộ lọc</a>
+        </div>
+    </form>
+</div>
+
+<div class="section-box" style="margin-bottom:16px;">
+    <p style="margin:0;">
+        {% if selected_branch_id %}
+        Đang lọc lịch sử kho theo một chi nhánh cụ thể.
+        {% else %}
+        Đang hiển thị toàn bộ lịch sử kho. Các dòng "Dùng chung" là dữ liệu cũ hoặc thao tác chưa gắn chi nhánh.
+        {% endif %}
+    </p>
+</div>
+
+{% if logs %}
+<div class="table-shell-v2 stocklog-shell">
+    <div class="table-wrap content-scroll-box scroll-box-lg">
+        <table class="stocklog-table">
+            <thead>
+                <tr>
+                    <th>Thời gian</th>
+                    <th>Chi nhánh</th>
+                    <th>Loại kho</th>
+                    <th>Hành động</th>
+                    <th>Chi tiết</th>
+                    <th>Số lượng</th>
+                    <th>Ghi chú</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>{{ log.branch.name|default:"Dùng chung" }}</td>
+                    <td>
+                        {% if log.stock_type == 'finished' %}
+                            <span class="mini-badge brown">Thành phẩm</span>
+                        {% else %}
+                            <span class="mini-badge blue">Nguyên liệu</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if log.action == 'import' %}
+                            <span class="mini-badge green">Nhập kho</span>
+                        {% elif log.action == 'export' %}
+                            <span class="mini-badge red">Xuất kho</span>
+                        {% elif log.action == 'make' %}
+                            <span class="mini-badge orange">Pha chế</span>
+                        {% elif log.action == 'order' %}
+                            <span class="mini-badge purple">Bán hàng</span>
+                        {% else %}
+                            <span class="mini-badge">{{ log.action }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="log-object">
+                            {% if log.product %}
+                                <div><strong>Sản phẩm:</strong> {{ log.product.name }}</div>
+                            {% endif %}
+                            {% if log.material %}
+                                <div><strong>Nguyên liệu:</strong> {{ log.material.name }}</div>
+                            {% endif %}
+                            {% if not log.product and not log.material %}
+                                <span class="muted-text">-</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        {% if log.quantity > 0 %}
+                            <span class="log-plus">+{{ log.quantity|floatformat:-1 }}</span>
+                        {% else %}
+                            <span class="log-minus">{{ log.quantity|floatformat:-1 }}</span>
+                        {% endif %}
+
+                        {% if log.material %}
+                            {{ log.material.unit }}
+                        {% elif log.product %}
+                            {% if log.product.category and log.product.category.name|lower == "bánh ngọt" %}
+                                cái
+                            {% else %}
+                                ly
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    <td>{{ log.note|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state-box">
+    <div class="empty-icon">📜</div>
+    <h3>Chưa có lịch sử kho</h3>
+    <p>Các thay đổi về nhập, xuất, bán hàng và pha chế sẽ hiển thị tại đây.</p>
+</div>
+{% endif %}
+{% endblock %}

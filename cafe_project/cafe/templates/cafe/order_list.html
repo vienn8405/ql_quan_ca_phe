@@ -1,61 +1,192 @@
 {% extends 'cafe/base.html' %}
+{% load currency_filters %}
+
+{% block title %}Quản lý đơn hàng{% endblock %}
+{% block page_heading %}Quản lý đơn hàng{% endblock %}
 
 {% block content %}
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Quản lý đơn hàng</title>
-</head>
-<body>
-    <h1>Danh sách đơn hàng</h1>
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">Danh sách đơn hàng</h2>
+        <p class="page-header-desc">Theo dõi các đơn hàng và cập nhật trạng thái xử lý.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Quay lại Dashboard</a>
+        <a href="{% url 'export_orders_excel' %}{% if q %}?search={{ q|urlencode }}{% endif %}" class="btn btn-secondary">Xuất Excel</a>
+        <a href="{% url 'order_add' %}" class="btn btn-primary">Tạo đơn thủ công</a>
+    </div>
+</div>
 
-    <a href="/admin/orders/add/">➕ Tạo đơn hàng</a>
-    <br><br>
+<form method="get" class="filter-panel" style="margin-bottom:16px;">
+    <div class="filter-row">
+        <div class="filter-group" style="min-width:320px; flex:1;">
+            <label>Tìm kiếm đơn hàng</label>
+            <input
+                type="text"
+                name="q"
+                value="{{ q }}"
+                placeholder="Mã đơn, tên món, loại đơn, chi nhánh, trạng thái, tên khách, số điện thoại..."
+            >
+        </div>
+        <button type="submit" class="btn-filter">Tìm kiếm</button>
+        <a href="{% url 'order_list' %}" class="btn-reset">Xóa tìm kiếm</a>
+        <a href="{% url 'order_list_filtered' %}" class="btn btn-secondary">Lọc nâng cao</a>
+    </div>
+</form>
 
-    <table border="1">
-        <tr>
-            <th>Sản phẩm</th>
-            <th>Số lượng</th>
-            <th>Thời gian</th>
-            <th>Giá</th>
-            <th>Tổng tiền</th>
-            <th>Hành động</th>
-        </tr>
-        {% for order in orders %}
-<tr>
-    <td>
-        {% for item in order.orderitem_set.all %}
-            {{ item.product.name }}<br>
-        {% endfor %}
-    </td>
+{% if orders %}
+<div class="order-table-box order-table-box-scroll">
+    <table class="order-table-custom">
+        <thead>
+            <tr>
+                <th class="col-id">Mã đơn</th>
+                <th class="col-product">Tên món</th>
+                <th class="col-type">Loại đơn</th>
+                <th class="col-branch">Chi nhánh</th>
+                <th class="col-money">Tổng tiền</th>
+                <th class="col-fee">Phí giao</th>
+                <th class="col-pay">Thanh toán</th>
+                <th class="col-status">Trạng thái</th>
+                <th class="col-delivery">Trạng thái giao</th>
+                <th class="col-date">Ngày tạo</th>
+                <th class="col-action">Thao tác</th>
+                <th class="col-update">Cập nhật trạng thái</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for o in orders %}
+            <tr>
+                <td class="col-id">#{{ o.id }}</td>
 
-    <td>
-        {% for item in order.orderitem_set.all %}
-            {{ item.quantity }}<br>
-        {% endfor %}
-    </td>
+                <td class="col-product">
+                    <div class="product-list-cell">
+                        {% for item in o.orderitem_set.all %}
+                            <div class="product-line">
+                                <strong>{{ item.product.name }}</strong>
+                                <span>x{{ item.quantity }}</span>
+                            </div>
+                        {% empty %}
+                            <span class="muted-text">Không có sản phẩm</span>
+                        {% endfor %}
+                    </div>
+                </td>
 
-    <td>{{ order.created_at|date:"d/m/Y H:i:s" }}</td>
+                <td class="col-type">{{ o.get_order_type_display }}</td>
 
-    <td>
-        {% for item in order.orderitem_set.all %}
-            {{ item.price }}<br>
-        {% endfor %}
-    </td>
+                <td class="col-branch">
+                    {% if o.branch %}
+                        {{ o.branch.name }}
+                    {% else %}
+                        <span class="muted-text">Chưa gán</span>
+                    {% endif %}
+                </td>
 
-    <td>{{ order.total_price }}</td>
+                <td class="col-money">{{ o.total_price|vnd }}</td>
+                <td class="col-fee">{{ o.delivery_fee|vnd }}</td>
+                <td class="col-pay">{{ o.get_payment_method_display }}</td>
 
-    <td>
-        <a href="{% url 'order_edit' order.id %}">✏️ Sửa</a> |
-        <a href="{% url 'order_delete' order.id %}">❌ Xóa</a>
-    </td>
-</tr>
-{% endfor %}
+                <td class="col-status">
+                    {% if o.status == 'pending' %}
+                        <span class="badge badge-orange">Chờ xử lý</span>
+                    {% elif o.status == 'confirmed' %}
+                        <span class="badge badge-blue">Đã xác nhận</span>
+                    {% elif o.status == 'preparing' %}
+                        <span class="badge badge-orange">Đang pha chế</span>
+                    {% elif o.status == 'delivering' %}
+                        <span class="badge badge-blue">Đang giao</span>
+                    {% elif o.status == 'completed' %}
+                        <span class="badge badge-green">Hoàn tất</span>
+                    {% elif o.status == 'cancelled' %}
+                        <span class="badge badge-red">Đã hủy</span>
+                    {% else %}
+                        <span class="badge badge-orange">{{ o.get_status_display }}</span>
+                    {% endif %}
+                </td>
 
+                <td class="col-delivery">
+                    {% if o.order_type == 'delivery' %}
+                        {% if o.delivery_status == 'waiting' %}
+                            <span class="badge badge-orange">Chờ gán</span>
+                        {% elif o.delivery_status == 'assigned' %}
+                            <span class="badge badge-light">Đã gán</span>
+                        {% elif o.delivery_status == 'accepted' %}
+                            <span class="badge badge-blue">Shipper đã nhận</span>
+                        {% elif o.delivery_status == 'shipping' %}
+                            <span class="badge badge-blue">Đang giao</span>
+                        {% elif o.delivery_status == 'delivered' %}
+                            <span class="badge badge-green">Đã giao</span>
+                        {% elif o.delivery_status == 'failed' %}
+                            <span class="badge badge-red">Thất bại</span>
+                        {% else %}
+                            <span class="badge badge-light">{{ o.get_delivery_status_display }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge badge-light">Không áp dụng</span>
+                    {% endif %}
+                </td>
+
+                <td class="col-date">{{ o.created_at|date:"d/m/Y H:i" }}</td>
+
+                <td class="col-action">
+                    <div class="action-group action-group-main">
+                        {% if o.status != 'completed' and o.status != 'cancelled' %}
+                            <a href="{% url 'order_edit' o.id %}" class="action-btn neutral">Sửa</a>
+                        {% endif %}
+                        <a href="{% url 'order_delete' o.id %}"
+                           class="action-btn danger"
+                           onclick="return confirm('Bạn có chắc muốn xóa đơn hàng này không?')">
+                           Xóa
+                        </a>
+                    </div>
+                </td>
+
+                <td class="col-update">
+                    <div class="action-group action-group-status">
+                        {% if o.status == 'pending' %}
+                            <a href="{% url 'order_update_status' o.id 'confirmed' %}" class="action-btn light">Xác nhận</a>
+                            <a href="{% url 'order_update_status' o.id 'cancelled' %}" class="action-btn danger">Hủy đơn</a>
+
+                        {% elif o.status == 'confirmed' %}
+                            <a href="{% url 'order_update_status' o.id 'preparing' %}" class="action-btn light">Pha chế</a>
+                            <a href="{% url 'order_update_status' o.id 'cancelled' %}" class="action-btn danger">Hủy đơn</a>
+
+                        {% elif o.status == 'preparing' %}
+                            {% if o.order_type == 'delivery' %}
+                                <a href="{% url 'admin_deliveries' %}" class="action-btn light">Đi tới logistics</a>
+                            {% else %}
+                                <a href="{% url 'order_update_status' o.id 'completed' %}" class="action-btn success">Hoàn tất</a>
+                            {% endif %}
+                            <a href="{% url 'order_update_status' o.id 'cancelled' %}" class="action-btn danger">Hủy đơn</a>
+
+                        {% elif o.status == 'delivering' %}
+                            {% if o.order_type == 'delivery' %}
+                                <a href="{% url 'admin_deliveries' %}" class="action-btn light">Theo dõi logistics</a>
+                            {% else %}
+                                <a href="{% url 'order_update_status' o.id 'completed' %}" class="action-btn success">Giao xong</a>
+                                <a href="{% url 'order_update_status' o.id 'cancelled' %}" class="action-btn danger">Giao thất bại</a>
+                            {% endif %}
+
+                        {% else %}
+                            <span class="muted-text">Không thể cập nhật</span>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
-
-    <br>
-    <a href="/admin/">⬅ Quay lại </a>
-</body>
-</html>
+</div>
+{% else %}
+<div class="empty-state-box">
+    <div class="empty-icon">🧾</div>
+    <h3>{% if q %}Không tìm thấy đơn hàng phù hợp{% else %}Chưa có đơn hàng nào{% endif %}</h3>
+    <p>
+        {% if q %}
+        Hãy thử tìm bằng mã đơn, tên món, loại đơn, chi nhánh, trạng thái hoặc thông tin khách hàng khác.
+        {% else %}
+        Khi người dùng đặt món, danh sách đơn hàng sẽ hiển thị tại đây.
+        {% endif %}
+    </p>
+</div>
+{% endif %}
 {% endblock %}

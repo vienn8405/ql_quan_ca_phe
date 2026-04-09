@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.gis',
+    'django.contrib.humanize',
     'cafe',
 ]
 
@@ -132,3 +133,14 @@ USE_TZ = True
 STATIC_URL = 'static/'
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+
+# ==================== EMAIL (MAILTRAP) ====================
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('MAILTRAP_HOST', 'sandbox.smtp.mailtrap.io')
+EMAIL_PORT = int(os.getenv('MAILTRAP_PORT', '2525'))
+EMAIL_HOST_USER = os.getenv('MAILTRAP_USERNAME', '')
+EMAIL_HOST_PASSWORD = os.getenv('MAILTRAP_PASSWORD', '')
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'CafeManager <noreply@cafemanager.vn>')

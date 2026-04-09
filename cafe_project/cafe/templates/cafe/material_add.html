@@ -1,0 +1,63 @@
+{% extends 'cafe/base.html' %}
+
+{% block title %}Thêm nguyên liệu{% endblock %}
+{% block page_heading %}Thêm nguyên liệu{% endblock %}
+
+{% block content %}
+<div class="form-page-wrap">
+    <div class="form-card-v3">
+        <div class="form-card-head">
+            <span class="summary-kicker">Material Create</span>
+            <h2>Thêm nguyên vật liệu</h2>
+            <p>Tạo nguyên liệu mới và nhập tồn kho ban đầu cho một chi nhánh cụ thể nếu cần.</p>
+        </div>
+
+        <form method="post" class="admin-form-v3">
+            {% csrf_token %}
+
+            <div class="form-grid-v3">
+                <div class="form-group-v3">
+                    <label>Tên nguyên liệu</label>
+                    <input type="text" name="name" required>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Số lượng</label>
+                    <input type="number" name="quantity" step="0.01" required>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Mức tối thiểu</label>
+                    <input type="number" name="min_quantity" step="0.01" required>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Đơn vị</label>
+                    <input type="text" name="unit" placeholder="Ví dụ: g, ml, cái..." required>
+                </div>
+
+                <div class="form-group-v3">
+                    <label>Chi nhánh nhập kho</label>
+                    <select name="branch_id">
+                        <option value="">Kho dùng chung / dữ liệu tổng</option>
+                        {% for branch in branches %}
+                        <option value="{{ branch.id }}" {% if request.GET.branch_id == branch.id|stringformat:"s" %}selected{% endif %}>
+                            {{ branch.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <p style="margin:0 0 16px; color:#6b6258;">
+                Nếu chưa chọn chi nhánh, nguyên liệu sẽ được tạo theo dạng dữ liệu dùng chung để giữ tương thích với kho cũ.
+            </p>
+
+            <div class="form-action-row-v3">
+                <button type="submit" class="btn btn-primary">Lưu nguyên liệu</button>
+                <a href="{% url 'material_list' %}{% if request.GET.branch_id %}?branch_id={{ request.GET.branch_id }}{% endif %}" class="btn btn-secondary">← Quay lại</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

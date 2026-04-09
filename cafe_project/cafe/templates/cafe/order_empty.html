@@ -1,6 +1,15 @@
 {% extends 'cafe/base.html' %}
 
+{% block title %}Không có sản phẩm{% endblock %}
+{% block page_heading %}Không thể tạo đơn hàng{% endblock %}
+
 {% block content %}
-<h2>📭 Bạn chưa có đơn hàng nào</h2>
-<a href="{% url 'user_menu' %}">🍽 Quay lại menu</a>
+<div class="empty-state-box">
+    <div class="empty-icon">⚠️</div>
+    <h3>Không có sản phẩm trong giỏ hàng</h3>
+    <p>
+        Bạn cần thêm ít nhất một món vào giỏ trước khi đặt hàng.
+    </p>
+    <a href="{% url 'user_menu' %}" class="btn btn-primary">📋 Đi đến menu</a>
+</div>
 {% endblock %}

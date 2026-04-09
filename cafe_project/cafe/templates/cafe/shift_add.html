@@ -1,0 +1,58 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Phân Ca Làm Việc{% endblock %}
+{% block page_heading %}Phân Ca Làm Việc Mới{% endblock %}
+
+{% block content %}
+<div class="widget-card form-wide">
+    <div class="widget-header">
+        <h3 class="widget-header-title">📅 Phân Ca Làm Việc Mới</h3>
+    </div>
+    <div class="widget-body">
+        <form method="POST">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Chi nhánh</label>
+                <select name="branch_id" class="form-control" required>
+                    {% for b in branches %}
+                    <option value="{{ b.id }}">{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Ngày làm việc</label>
+                    <input type="date" name="date" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ca làm việc</label>
+                    <select name="shift_type" class="form-control" required>
+                        <option value="morning">Ca sáng (6h-14h)</option>
+                        <option value="afternoon">Ca chiều (14h-22h)</option>
+                        <option value="evening">Ca tối (22h-6h)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Ghi chú ca</label>
+                <textarea name="notes" class="form-control" rows="2" placeholder="Ghi chú chung cho ca làm việc..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Chọn nhân viên (có thể chọn nhiều)</label>
+                <div class="checkbox-list">
+                    {% for emp in employees %}
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="employees" value="{{ emp.id }}">
+                        {{ emp.name }} ({{ emp.role }})
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg w-full">💾 Lưu Phân Ca</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

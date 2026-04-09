@@ -1,33 +1,60 @@
 {% extends 'cafe/base.html' %}
+
+{% block title %}Quản lý chi nhánh{% endblock %}
+{% block page_heading %}Quản lý chi nhánh{% endblock %}
+
 {% block content %}
-<h2>Quản lý chi nhánh</h2>
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">📍 Danh sách chi nhánh</h2>
+        <p class="page-header-desc">
+            Quản lý các chi nhánh đang hiển thị trên hệ thống và bản đồ GIS.
+        </p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Quay lại Dashboard</a>
+        <a href="{% url 'branch_add' %}" class="btn btn-primary">➕ Thêm chi nhánh</a>
+    </div>
+</div>
 
-<p><a href="{% url 'branch_add' %}">➕ Thêm chi nhánh mới</a></p>
+{% if branches %}
+<div class="branch-grid-v3 content-scroll-box scroll-box-sm">
+    {% for b in branches %}
+    <div class="branch-card-v3">
+        <div class="branch-card-top">
+            <div class="branch-icon-v3">📍</div>
+            <div>
+                <h3>{{ b.name }}</h3>
+                <p>{{ b.address }}</p>
+            </div>
+        </div>
 
-<table>
-  <tr>
-    <th>ID</th>
-    <th>Tên</th>
-    <th>Địa chỉ</th>
-    <th>Tọa độ</th>
-    <th>Hành động</th>
-  </tr>
-  {% for b in branches %}
-  <tr>
-    <td>{{ b.id }}</td>
-    <td>{{ b.name }}</td>
-    <td>{{ b.address }}</td>
-    <td>
-      {% if b.location %}
-        {{ b.location.y }}, {{ b.location.x }}
-      {% endif %}
-    </td>
-    <td>
-      <a href="{% url 'branch_edit' b.id %}">Sửa</a> |
-      <a href="{% url 'branch_delete' b.id %}" onclick="return confirm('Xóa chi nhánh này?')">Xóa</a>
-    </td>
-  </tr>
-  {% endfor %}
-  <a href="/admin/">⬅ Quay lại </a>
-</table>
+        <div class="branch-info-list">
+            <div class="branch-info-item">
+                <span>Latitude</span>
+                <strong>{% if b.location %}{{ b.location.y }}{% else %}-{% endif %}</strong>
+            </div>
+            <div class="branch-info-item">
+                <span>Longitude</span>
+                <strong>{% if b.location %}{{ b.location.x }}{% else %}-{% endif %}</strong>
+            </div>
+        </div>
+
+        <div class="admin-card-actions">
+            <a href="{% url 'branch_edit' b.id %}" class="btn btn-secondary">✏️ Sửa</a>
+            <a href="{% url 'branch_delete' b.id %}" class="btn btn-secondary"
+               onclick="return confirm('Bạn có chắc muốn xóa chi nhánh này không?')">
+                🗑️ Xóa
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state-box">
+    <div class="empty-icon">🗺️</div>
+    <h3>Chưa có chi nhánh nào</h3>
+    <p>Hãy thêm chi nhánh để hiển thị trên hệ thống và bản đồ.</p>
+</div>
+{% endif %}
 {% endblock %}

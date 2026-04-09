@@ -1,6 +1,6 @@
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
 
 # Django
 db.sqlite3
@@ -10,8 +10,15 @@ staticfiles/
 # VSCode
 .vscode/
 
+# Environment
+.env
+.env.*
+
 # Zip
 *.zip
 
 # Ảnh nếu thư mục ngoài repo
 ảnh/
+
+.vscode/
+pyrightconfig.json

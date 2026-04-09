@@ -1,0 +1,27 @@
+{% extends 'cafe/base.html' %}
+{% load humanize %}
+{% block title %}Đánh giá món {{ product.name }}{% endblock %}
+{% block page_heading %}Đánh giá sản phẩm{% endblock %}
+
+{% block content %}
+
+<div class="rate-container">
+    <h2 class="rate-title">Trải nghiệm món {{ product.name }} thế nào?</h2>
+    <p class="rate-desc">Đơn hàng số #{{ order.id }} - Ngày: {{ order.created_at|date:"d/m/Y H:i" }}</p>
+
+    <form method="POST">
+        {% csrf_token %}
+        <div class="star-rating-input">
+            <input type="radio" id="star5" name="rating" value="5" checked><label for="star5" title="Tuyệt vời">★</label>
+            <input type="radio" id="star4" name="rating" value="4"><label for="star4" title="Tốt">★</label>
+            <input type="radio" id="star3" name="rating" value="3"><label for="star3" title="Bình thường">★</label>
+            <input type="radio" id="star2" name="rating" value="2"><label for="star2" title="Tệ">★</label>
+            <input type="radio" id="star1" name="rating" value="1"><label for="star1" title="Rất tệ">★</label>
+        </div>
+
+        <textarea name="comment" class="rate-comment" placeholder="Bạn có góp ý gì về chất lượng món {{ product.name }} không?"></textarea>
+
+        <button type="submit" class="rate-submit">Gửi Đánh Giá Ngay!</button>
+    </form>
+</div>
+{% endblock %}

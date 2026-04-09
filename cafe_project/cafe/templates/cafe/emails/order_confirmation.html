@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+
+<div style="background: #4a2c1d; color: #fff; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+    <h1 style="margin: 0; font-size: 22px;">📦 Xác Nhận Đơn Hàng</h1>
+    <p style="margin: 8px 0 0; opacity: 0.9;">CafeManager — Hệ thống quản lý quán cà phê</p>
+</div>
+
+<div style="border: 1px solid #e0d5c9; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
+
+    <p>Xin chào <strong>{{ order.customer_name }}</strong>,</p>
+
+    <p>Cảm ơn bạn đã đặt hàng! Đơn hàng của bạn đã được tiếp nhận vào hệ thống.</p>
+
+    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+        <tr>
+            <td style="padding: 8px 12px; background: #f8f3ee; font-weight: 600; width: 40%;">Mã đơn hàng</td>
+            <td style="padding: 8px 12px; background: #f8f3ee; font-weight: 700; color: #4a2c1d;">#{{ order.id }}</td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 12px; font-weight: 600;">Tên khách hàng</td>
+            <td style="padding: 8px 12px;">{{ order.customer_name }}</td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 12px; background: #f8f3ee; font-weight: 600;">Số điện thoại</td>
+            <td style="padding: 8px 12px; background: #f8f3ee;">{{ order.customer_phone }}</td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 12px; font-weight: 600;">Email</td>
+            <td style="padding: 8px 12px;">{{ order.customer_email }}</td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 12px; background: #f8f3ee; font-weight: 600;">Loại đơn</td>
+            <td style="padding: 8px 12px; background: #f8f3ee;">{{ order_type_display }}</td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 12px; font-weight: 600;">Thanh toán</td>
+            <td style="padding: 8px 12px;">{{ payment_display }}</td>
+        </tr>
+        {% if order.customer_address %}
+        <tr>
+            <td style="padding: 8px 12px; background: #f8f3ee; font-weight: 600;">Địa chỉ giao</td>
+            <td style="padding: 8px 12px; background: #f8f3ee;">{{ order.customer_address }}</td>
+        </tr>
+        {% endif %}
+        {% if branch_name %}
+        <tr>
+            <td style="padding: 8px 12px; font-weight: 600;">Chi nhánh</td>
+            <td style="padding: 8px 12px;">{{ branch_name }}</td>
+        </tr>
+        {% endif %}
+    </table>
+
+    {% if items %}
+    <h3 style="color: #4a2c1d; margin: 20px 0 8px;">🛒 Chi tiết đơn hàng</h3>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: #4a2c1d; color: #fff;">
+                <th style="padding: 8px 12px; text-align: left;">Sản phẩm</th>
+                <th style="padding: 8px 12px; text-align: center;">SL</th>
+                <th style="padding: 8px 12px; text-align: right;">Thành tiền</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 8px 12px;">{{ item.product.name }}</td>
+                <td style="padding: 8px 12px; text-align: center;">{{ item.quantity }}</td>
+                <td style="padding: 8px 12px; text-align: right;">{{ item.subtotal }}đ</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if order.discount_amount > 0 %}
+    <p style="color: #28a745; margin-top: 8px;">🎟️ Giảm giá: -{{ order.discount_amount|floatformat:0 }}đ</p>
+    {% endif %}
+
+    {% if order.delivery_fee > 0 %}
+    <p style="color: #666; margin-top: 4px;">🚚 Phí giao hàng: {{ order.delivery_fee|floatformat:0 }}đ</p>
+    {% endif %}
+
+    <div style="background: #4a2c1d; color: #fff; padding: 14px 20px; border-radius: 8px; margin: 16px 0; text-align: right; font-size: 18px;">
+        Tổng cộng: <strong>{{ order.total_price|floatformat:0 }}đ</strong>
+    </div>
+
+    <p style="color: #666; font-size: 14px;">
+        Trạng thái hiện tại: <strong>{{ status_display }}</strong><br>
+        Chúng tôi sẽ xử lý đơn hàng trong thời gian sớm nhất.
+    </p>
+
+    <p style="color: #999; font-size: 12px; margin-top: 24px; border-top: 1px solid #eee; padding-top: 12px;">
+        Email này được gửi tự động từ hệ thống CafeManager. Vui lòng không trả lời trực tiếp.
+    </p>
+</div>
+
+</body>
+</html>

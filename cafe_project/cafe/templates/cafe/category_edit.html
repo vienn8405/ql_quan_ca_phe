@@ -1,14 +1,28 @@
 {% extends 'cafe/base.html' %}
+{% block title %}Sửa loại{% endblock %}
+{% block page_heading %}Sửa loại sản phẩm{% endblock %}
 
 {% block content %}
-<h1>Sửa loại</h1>
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">✏️ Sửa loại sản phẩm</h2>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'category_list' %}" class="btn btn-secondary">⬅ Quay lại</a>
+    </div>
+</div>
 
-<form method="post">
-  {% csrf_token %}
-  <input type="text" name="name" value="{{ category.name }}" required>
-  <br><br>
-  <button type="submit">Lưu</button>
-</form>
-
-<a href="{% url 'category_list' %}">⬅ Quay lại</a>
+<div class="form-container form-narrow">
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Tên loại sản phẩm</label>
+            <input type="text" name="name" value="{{ category.name }}" required class="form-control">
+        </div>
+        <div class="form-action-row-v3">
+            <button type="submit" class="btn btn-primary">💾 Lưu</button>
+            <a href="{% url 'category_list' %}" class="btn-cancel">Hủy</a>
+        </div>
+    </form>
+</div>
 {% endblock %}

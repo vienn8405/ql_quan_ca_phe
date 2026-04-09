@@ -1,0 +1,66 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Quản lý Đánh Giá{% endblock %}
+{% block page_heading %}Khách Hàng Đánh Giá{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">🌟 Phản Hồi Từ Khách Hàng</h2>
+        <p class="page-header-desc">Theo dõi sự hài lòng của khách hàng trên toàn hệ thống.</p>
+    </div>
+</div>
+
+<div class="row content-scroll-box scroll-box-sm">
+    {% for r in reviews %}
+    <div class="col-md-6">
+        <div class="review-card {% if r.rating <= 3 %}low-rating{% endif %}">
+            <div class="review-header">
+                <div>
+                    <div class="review-user">
+                        {{ r.order.customer_name|default:"Khách ẩn danh" }} - Đơn #{{ r.order.id }}
+                        {% if r.rating <= 3 %}
+                            <span class="badge-low">⚠ Cần xử lý</span>
+                        {% endif %}
+                    </div>
+                    <div class="review-product">{{ r.product.name }}</div>
+                    <div class="review-branch">Chi nhánh: {{ r.order.branch.name|default:"Chưa rõ" }}</div>
+                </div>
+                <div class="text-right">
+                    <div class="star-rating">
+                        {% for i in "12345"|make_list %}{% if forloop.counter <= r.rating %}★{% else %}<span class="star-inactive">★</span>{% endif %}{% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="review-date">{{ r.created_at|date:"d/m/Y H:i" }}</div>
+            {% if r.comment %}
+                <div class="review-comment">"{{ r.comment }}"</div>
+            {% else %}
+                <div class="review-comment review-comment--empty">(Không để lại lời bình)</div>
+            {% endif %}
+
+            {% if r.rating <= 3 %}
+            <div class="review-action-section">
+                <div class="review-phone">
+                    📋 <strong>SĐT khách:</strong> {{ r.order.customer_phone|default:"Chưa có số điện thoại" }}
+                </div>
+                {% if r.order.customer_phone %}
+                <a href="tel:{{ r.order.customer_phone }}" class="btn-contact">
+                    📞 Gọi xin lỗi & xử lý
+                </a>
+                <a href="https://zalo.me/{{ r.order.customer_phone }}" target="_blank" class="btn-contact-zalo">
+                    💬 Nhắn Zalo
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center">
+        <p>Chưa có đánh giá nào.</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

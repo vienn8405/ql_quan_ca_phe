@@ -1,0 +1,68 @@
+{% extends 'cafe/base.html' %}
+{% block title %}Thêm Nhà Cung Cấp{% endblock %}
+{% block page_heading %}Đăng Ký Nhà Cung Cấp Mới{% endblock %}
+
+{% block content %}
+<div class="widget-card form-wide">
+    <div class="widget-header">
+        <h3 class="widget-header-title">📋 Thông tin Nhà cung cấp</h3>
+    </div>
+    <div class="widget-body">
+        <form method="POST">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Tên Đối tác / Công ty *</label>
+                <input type="text" name="name" class="form-control" required>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Người liên hệ</label>
+                    <input type="text" name="contact_person" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Số điện thoại *</label>
+                    <input type="text" name="phone" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Địa chỉ</label>
+                <textarea name="address" class="form-control" rows="2"></textarea>
+            </div>
+
+            <hr class="popup-card-divider">
+
+            <h4 class="widget-header-title text-sm mb-md">📦 Tạo Phiếu Nhập Hàng Đầu Tiên (Tùy chọn)</h4>
+            
+            <div class="form-group">
+                <label class="form-label">Nguyên liệu nhập</label>
+                <select name="ingredient_id" class="form-control">
+                    <option value="">-- Chọn Nguyên liệu --</option>
+                    {% for m in materials %}
+                    <option value="{{ m.id }}">{{ m.name }} ({{ m.unit }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Số lượng nhập</label>
+                    <input type="number" step="0.1" name="qty" placeholder="Ví dụ: 50" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Đơn giá (VNĐ)</label>
+                    <input type="number" name="unit_price" placeholder="Ví dụ: 150000" class="form-control">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg w-full">💾 Lưu Thông Tin</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

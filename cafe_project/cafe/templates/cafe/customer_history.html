@@ -1,0 +1,70 @@
+{% extends 'cafe/base.html' %}
+{% load currency_filters %}
+{% block title %}Lịch sử mua hàng - CafeFlow{% endblock %}
+{% block page_heading %}Tra cứu Lịch sử & Đánh giá{% endblock %}
+
+{% block content %}
+<div class="history-container">
+    <h2 class="history-title">Lịch sử Đơn hàng & Đánh giá ☕</h2>
+    <p class="history-desc">Nhập SĐT để xem lịch sử mua hàng, hạng thành viên và đánh giá sản phẩm.</p>
+    
+    <form class="search-form" method="GET">
+        <input type="text" name="phone" placeholder="Nhập SĐT..." value="{{ phone }}" required>
+        <button type="submit" class="btn-search">🔍 Tra Cứu</button>
+    </form>
+
+    {% if phone %}
+        {% if loyalty %}
+        <div class="loyalty-card">
+            <div>
+                <h3>Thành viên: {{ loyalty.name }}</h3>
+                <div class="loyalty-tier">Hạng: <strong>{{ loyalty.get_tier_display }}</strong></div>
+            </div>
+            <div class="loyalty-points">
+                <div class="loyalty-points-value">{{ loyalty.points }} đ</div>
+                <div class="loyalty-points-label">Điểm tích lũy</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <h4 class="history-section-title">📚 Đơn hàng gần đây:</h4>
+        {% if not orders %}
+            <div class="empty-state-box">
+                <p class="text-muted">Chưa có đơn hàng nào khớp với SĐT này.</p>
+            </div>
+        {% else %}
+            {% for order in orders %}
+            <div class="order-card">
+                <div class="order-header">
+                    <div>
+                        <strong>Mã Đơn: #{{ order.id }}</strong>
+                        <div class="order-card-date">{{ order.created_at|date:"d/m/Y H:i" }} - {{ order.get_order_type_display }}</div>
+                    </div>
+                    <div class="text-right">
+                        <span class="order-card-status">{{ order.get_status_display }}</span>
+                        <div class="order-card-price">{{ order.total_price|vnd }}</div>
+                    </div>
+                </div>
+                <div>
+                    <strong class="text-sm">Sản phẩm:</strong>
+                    <ul class="order-items-list">
+                        {% for item in order.items_list %}
+                        <li>
+                            <span>{{ item.quantity }}x {{ item.product.name }}</span>
+                            {% if order.status == 'completed' %}
+                                {% if item.has_reviewed %}
+                                <span class="rated-label">Đã đánh giá {{ item.rating_given }}★</span>
+                                {% else %}
+                                <a href="{% url 'submit_review' order.id item.product.id %}" class="btn-rate">⭐ Đánh giá</a>
+                                {% endif %}
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

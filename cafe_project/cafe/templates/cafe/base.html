@@ -3,54 +3,149 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Quán Cà Phê{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'cafe/style.css' %}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CafeFlow{% endblock %}</title>
+
+    <link rel="stylesheet" href="{% static 'cafe/style.css' %}?v={% now 'U' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
-  <div class="app">
-    <!-- Cột trái: "coffee sleeve" -->
-    <aside class="sleeve">
-      <div class="sleeve-top">
-        <div class="cup">☕</div>
-        <div class="brand">
-          <div class="brand-name">Quán Cà Phê</div>
-          <div class="brand-sub">order · quản lý · GIS</div>
-        </div>
-      </div>
+    <div class="site-shell">
+        <aside class="sidebar">
+            <div class="brand-box">
+                <div class="brand-mark">☕</div>
+                <div>
+                    <div class="brand-title">CafeFlow</div>
+                    <div class="brand-subtitle">smart coffee management</div>
+                </div>
+            </div>
 
-      <nav class="sleeve-nav">
-        <a class="navlink" href="{% url 'user_home' %}">🏠 <span>Trang chủ</span></a>
-        <a class="navlink" href="{% url 'user_menu' %}">📋 <span>Menu</span></a>
-        <a class="navlink" href="{% url 'cart' %}">🛒 <span>Giỏ hàng</span></a>
-        <a class="navlink" href="{% url 'login' %}">🔐 <span>Đăng nhập</span></a>
-        <a class="navlink" href="{% url 'map' %}">🗺️ <span>Bản đồ</span></a>
-      </nav>
+            <nav class="sidebar-nav">
+    <a href="{% url 'user_home' %}" class="nav-item {% if request.path == '/user/' %}active{% endif %}">
+        🏠 <span>Trang chủ</span>
+    </a>
 
-      <div class="sleeve-foot">
-        <div class="tag">CÀ PHÊ & BẢN ĐỒ</div>
-        <div class="mini">Ứng dụng quản lý chi nhánh bằng GIS</div>
-      </div>
-    </aside>
+    <a href="{% url 'user_menu' %}" class="nav-item {% if request.path == '/menu/' %}active{% endif %}">
+        📋 <span>Menu</span>
+    </a>
 
-    <!-- Cột phải: giấy nội dung -->
-    <main class="paper">
-      <div class="paper-edge"></div>
+    <a href="{% url 'cart' %}" class="nav-item {% if request.path == '/cart/' %}active{% endif %}">
+        🛒 <span>Giỏ hàng</span>
+    </a>
 
-      <!-- HERO: canh giữa tự động -->
-       {% block hero %}
-      <section class="hero">
-        <h2 class="hero-title">Chào mừng đến Quán Cà Phê</h2>
-        <p class="hero-sub">Chọn menu, quản lý giỏ hàng, hoặc mở bản đồ để xem chi nhánh.</p>
-      </section>
-      {% endblock %}
+    <a href="{% url 'user_order_detail' %}" class="nav-item {% if '/order' in request.path %}active{% endif %}">
+        📦 <span>Đơn hàng</span>
+    </a>
 
-      <section class="paper-body">
-        {% block content %}{% endblock %}
-      </section>
-      
-    </main>
-  </div>
+    <a href="{% url 'map' %}" class="nav-item {% if '/map' in request.path %}active{% endif %}">
+        🗺️ <span>Bản đồ</span>
+    </a>
+
+    <a href="{% url 'reserve_table' %}" class="nav-item {% if '/reservation' in request.path %}active{% endif %}">
+        📅 <span>Đặt bàn</span>
+    </a>
+
+    <a href="{% url 'customer_history' %}" class="nav-item {% if '/customer-history' in request.path %}active{% endif %}">
+        ⭐ <span>Lịch sử & Đánh giá</span>
+    </a>
+
+    <a href="{% url 'login' %}" class="nav-item {% if '/login' in request.path %}active{% endif %}">
+        🔐 <span>Admin</span>
+    </a>
+
+    {% if '/admin' in request.path %}
+    <div class="sidebar-divider"></div>
+    <a href="{% url 'admin_dashboard' %}" class="nav-item nav-item-admin {% if request.path == '/admin/' %}active{% endif %}">
+        🏠 <span>Dashboard Admin</span>
+    </a>
+    <a href="{% url 'product_list' %}" class="nav-item {% if '/products' in request.path %}active{% endif %}">
+        📦 <span>Sản phẩm</span>
+    </a>
+    <a href="{% url 'order_list' %}" class="nav-item {% if '/orders' in request.path %}active{% endif %}">
+        🧾 <span>Đơn hàng</span>
+    </a>
+    <a href="{% url 'admin_deliveries' %}" class="nav-item {% if '/admin/deliveries' in request.path %}active{% endif %}">
+        🛵 <span>Quản lý Giao hàng</span>
+    </a>
+    <a href="{% url 'voucher_list' %}" class="nav-item {% if '/vouchers' in request.path %}active{% endif %}">
+        🎟️ <span>Khuyến mãi</span>
+    </a>
+    <a href="{% url 'admin_reservations' %}" class="nav-item {% if '/admin/reservations' in request.path %}active{% endif %}">
+        📅 <span>Đặt bàn</span>
+    </a>
+    <a href="{% url 'table_list' %}" class="nav-item {% if '/tables' in request.path %}active{% endif %}">
+        🪑 <span>Quản lý Bàn</span>
+    </a>
+    <a href="{% url 'admin_reviews' %}" class="nav-item {% if '/admin/reviews' in request.path %}active{% endif %}">
+        🌟 <span>Đánh giá</span>
+    </a>
+    <a href="{% url 'employee_list' %}" class="nav-item {% if '/employees' in request.path %}active{% endif %}">
+        👨‍💼 <span>Nhân viên</span>
+    </a>
+    <a href="{% url 'branch_list' %}" class="nav-item {% if '/branches' in request.path %}active{% endif %}">
+        🗺️ <span>Chi nhánh</span>
+    </a>
+    <a href="{% url 'supplier_list' %}" class="nav-item {% if '/admin/suppliers' in request.path %}active{% endif %}">
+        🏭 <span>Nhà cung cấp</span>
+    </a>
+    <a href="{% url 'shift_list' %}" class="nav-item {% if '/admin/shifts' in request.path %}active{% endif %}">
+        ⏰ <span>Ca làm việc</span>
+    </a>
+    <div class="sidebar-divider"></div>
+    <a href="{% url 'inventory_list' %}" class="nav-item {% if '/admin/inventory' in request.path and 'make' not in request.path %}active{% endif %}">
+        📦 <span>Kho thành phẩm</span>
+    </a>
+    <a href="{% url 'material_list' %}" class="nav-item {% if '/admin/materials' in request.path %}active{% endif %}">
+        🧪 <span>Nguyên vật liệu</span>
+    </a>
+    <a href="{% url 'stocklog_list' %}" class="nav-item {% if '/admin/stocklogs' in request.path %}active{% endif %}">
+        📋 <span>Lịch sử kho</span>
+    </a>
+    <div class="sidebar-divider"></div>
+    <a href="{% url 'revenue_report' %}" class="nav-item {% if '/revenue' in request.path %}active{% endif %}">
+        📊 <span>Doanh thu</span>
+    </a>
+    <div class="sidebar-divider"></div>
+    <a href="{% url 'logout' %}" class="nav-item nav-item-logout">
+        🚪 <span>Đăng xuất</span>
+    </a>
+    {% endif %}
+</nav>
+
+            <div class="sidebar-card">
+                <p class="sidebar-card-label">Coffee • Data • GIS</p>
+                <h4>Web quản lý quán cà phê</h4>
+                <p>Menu thông minh, kho, pha chế tự động, dashboard và bản đồ chi nhánh.</p>
+            </div>
+        </aside>
+
+        <main class="main-panel">
+            <header class="topbar">
+                <div>
+                    <p class="topbar-label">Cafe Management Platform</p>
+                    <h1 class="topbar-title">{% block page_heading %}Hệ thống quản lý quán cà phê{% endblock %}</h1>
+                </div>
+                
+            </header>
+
+            {% if messages %}
+                <div class="message-list">
+                    {% for message in messages %}
+                        <div class="alert-box">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <section class="content-card">
+                {% block content %}{% endblock %}
+            </section>
+        </main>
+    </div>
+    {% block extra_js %}{% endblock %}
 </body>
-
-
 </html>

@@ -1,19 +1,19 @@
 {% extends 'cafe/base.html' %}
 
-{% block content %}
-<h1>🎉 Đặt hàng thành công!</h1>
+{% block title %}Đặt hàng thành công{% endblock %}
+{% block page_heading %}Đặt hàng thành công{% endblock %}
 
-<p>Mã đơn hàng: <strong>#{{ order.id }}</strong></p>
-<p>Tổng tiền: <strong>{{ order.total_price }} đ</strong></p>
-<p>Hình thức thanh toán:
-    <strong>
-        {% if order.payment_method == 'cash' %}
-            💵 Tiền mặt
-        {% else %}
-            💳 Chuyển khoản
-        {% endif %}
-    </strong>
-</p>
-<a href="{% url 'user_order_detail' %}">📦 Xem đơn hàng</a>
-<a href="{% url 'user_menu' %}">⬅ Quay lại menu</a>
+{% block content %}
+<div class="success-box-v2">
+    <div class="success-icon">✅</div>
+    <h2>Đặt hàng thành công</h2>
+    <p>
+        Đơn hàng của bạn đã được tạo trong hệ thống. Bạn có thể theo dõi trạng thái xử lý tại trang đơn hàng.
+    </p>
+
+    <div class="success-actions">
+        <a href="{% url 'user_order_detail' %}" class="btn btn-primary">📦 Xem đơn hàng</a>
+        <a href="{% url 'user_menu' %}" class="btn btn-secondary">📋 Quay lại menu</a>
+    </div>
+</div>
 {% endblock %}

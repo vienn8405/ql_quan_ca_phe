@@ -1,0 +1,161 @@
+{% extends 'cafe/base.html' %}
+{% load currency_filters %}
+{% block title %}Thống kê Doanh thu{% endblock %}
+{% block page_heading %}Thống kê Doanh thu{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">📊 Thống kê Doanh thu</h2>
+        <p class="page-header-desc">Theo dõi doanh thu, đơn hàng và sản phẩm bán chạy trong khoảng thời gian lọc.</p>
+    </div>
+</div>
+
+<form method="GET" class="filter-bar">
+    <div>
+        <label class="form-label">Từ ngày</label>
+        <input type="date" name="date_from" value="{{ date_from }}" class="form-control">
+    </div>
+    <div>
+        <label class="form-label">Đến ngày</label>
+        <input type="date" name="date_to" value="{{ date_to }}" class="form-control">
+    </div>
+    <button type="submit" class="btn-filter">🔍 Lọc</button>
+    <a href="{% url 'revenue_report' %}" class="btn-filter-reset">↺ Reset</a>
+    <a href="{% url 'export_revenue_excel' %}?date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-secondary" style="margin-left:8px;">📥 Xuất Excel</a>
+    <a href="{% url 'export_revenue_pdf' %}?date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-secondary">📄 Xuất PDF</a>
+</form>
+
+<div class="stat-cards">
+    <div class="stat-card">
+        <div class="stat-card-icon">💰</div>
+        <div class="stat-card-value text-warning">{{ total_revenue|vnd }}</div>
+        <div class="stat-card-label">Tổng doanh thu</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-icon">✅</div>
+        <div class="stat-card-value text-success">{{ total_orders }}</div>
+        <div class="stat-card-label">Đơn hoàn thành</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-icon">📅</div>
+        <div class="stat-card-value text-blue">{{ avg_daily|vnd }}</div>
+        <div class="stat-card-label">TB doanh thu/ngày</div>
+    </div>
+</div>
+
+<div class="chart-grid">
+    <div class="chart-box grid-full">
+        <h4>📈 Doanh thu theo ngày</h4>
+        <canvas id="revenueChart" height="80"></canvas>
+    </div>
+    <div class="chart-box">
+        <h4>☕ Top sản phẩm bán chạy</h4>
+        <canvas id="topProductChart"></canvas>
+    </div>
+    <div class="chart-box">
+        <h4>🧾 Phân tích theo loại đơn</h4>
+        <canvas id="orderTypeChart"></canvas>
+    </div>
+</div>
+
+<div class="chart-box">
+    <h4>🏆 Chi tiết Top sản phẩm</h4>
+    <table class="rpt">
+        <thead>
+            <tr><th>#</th><th>Sản phẩm</th><th>Số lượng bán</th></tr>
+        </thead>
+        <tbody>
+            {% for p in top_products %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ p.product__name }}</td>
+                <td>{{ p.total_qty }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-center muted-text">Chưa có dữ liệu</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function(){
+const labels = eval('(' + `{{ labels|default:"[]"|safe }}` + ')');
+const revenues = eval('(' + `{{ revenues|default:"[]"|safe }}` + ')');
+const orderCounts = eval('(' + `{{ order_counts|default:"[]"|safe }}` + ')');
+const topLabelsStr = "{% for p in top_products %}{{ p.product__name }}|{% endfor %}";
+const topLabels = topLabelsStr.split('|').filter(Boolean);
+const topQtyStr = "{% for p in top_products %}{{ p.total_qty }}|{% endfor %}";
+const topQty = topQtyStr.split('|').filter(Boolean).map(Number);
+const typeLabels = eval('(' + `{{ type_labels|default:"[]"|safe }}` + ')');
+const typeCounts = eval('(' + `{{ type_counts|default:"[]"|safe }}` + ')');
+
+// Line chart doanh thu theo ngày
+new Chart(document.getElementById('revenueChart'), {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'Doanh thu (đ)',
+            data: revenues,
+            borderColor: '#7b4b2a',
+            backgroundColor: 'rgba(123,75,42,0.08)',
+            tension: 0.4,
+            fill: true,
+            pointBackgroundColor: '#7b4b2a',
+        }, {
+            label: 'Số đơn',
+            data: orderCounts,
+            borderColor: '#e09c75',
+            backgroundColor: 'rgba(224,156,117,0.08)',
+            tension: 0.4,
+            fill: false,
+            yAxisID: 'y2',
+        }]
+    },
+    options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+            y: { beginAtZero: true, position: 'left', title: { display: true, text: 'Doanh thu (đ)' } },
+            y2: { beginAtZero: true, position: 'right', title: { display: true, text: 'Số đơn' }, grid: { drawOnChartArea: false } }
+        }
+    }
+});
+
+// Bar chart top products
+new Chart(document.getElementById('topProductChart'), {
+    type: 'bar',
+    data: {
+        labels: topLabels,
+        datasets: [{
+            label: 'Số lượng bán',
+            data: topQty,
+            backgroundColor: ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c','#e91e63','#ff5722'],
+            borderRadius: 8,
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+
+// Pie chart loại đơn
+new Chart(document.getElementById('orderTypeChart'), {
+    type: 'doughnut',
+    data: {
+        labels: typeLabels,
+        datasets: [{
+            data: typeCounts,
+            backgroundColor: ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6'],
+        }]
+    },
+    options: { responsive: true, cutout: '60%' }
+});
+})();
+</script>
+{% endblock %}
