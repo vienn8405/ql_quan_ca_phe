@@ -1,0 +1,106 @@
+{% extends 'cafe/base.html' %}
+
+{% block title %}{% if shipper %}Sửa Shipper{% else %}Thêm Shipper{% endif %}{% endblock %}
+{% block page_heading %}{% if shipper %}Sửa thông tin Shipper{% else %}Thêm Shipper mới{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">{% if shipper %}✏️ Sửa thông tin Shipper{% else %}➕ Thêm Shipper mới{% endif %}</h2>
+        <p class="page-header-desc">
+            {% if shipper %}
+                Cập nhật thông tin tài khoản giao hàng.
+            {% else %}
+                Tạo tài khoản cho người giao hàng mới.
+            {% endif %}
+        </p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'admin_shipper_list' %}" class="btn btn-secondary">← Quay lại danh sách</a>
+    </div>
+</div>
+
+<div class="form-container" style="max-width:600px; margin:0 auto;">
+    <form method="POST" class="form-card" style="background:#fff; padding:32px; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        {% csrf_token %}
+        
+        {% if not shipper %}
+        <div class="form-group">
+            <label for="username">Tên đăng nhập <span style="color:#e74c3c;">*</span></label>
+            <input type="text" id="username" name="username" required
+                   placeholder="VD: shipper_01"
+                   value="{{ shipper.username|default:'' }}"
+                   class="form-input">
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Mật khẩu <span style="color:#e74c3c;">*</span></label>
+            <input type="password" id="password" name="password" required
+                   placeholder="Nhập mật khẩu"
+                   class="form-input">
+            <small style="color:#888; font-size:12px;">⚠️ Nên sử dụng mật khẩu mạnh trong môi trường production.</small>
+        </div>
+        {% endif %}
+        
+        <div class="form-group">
+            <label for="phone">Số điện thoại</label>
+            <input type="text" id="phone" name="phone"
+                   placeholder="VD: 0909123456"
+                   value="{{ profile.phone|default:'' }}"
+                   class="form-input">
+        </div>
+        
+        <div class="form-group">
+            <label for="branch_id">Chi nhánh phụ trách</label>
+            <select id="branch_id" name="branch_id" class="form-input">
+                <option value="">-- Không chọn (Shipper tự do) --</option>
+                {% for b in branches %}
+                    <option value="{{ b.id }}" 
+                            {% if profile.assigned_branch_id == b.id %}selected{% endif %}>
+                        📍 {{ b.name }}
+                    </option>
+                {% endfor %}
+            </select>
+            <small style="color:#888; font-size:12px;">
+                Chọn chi nhánh mặc định cho shipper. Shipper có thể nhận đơn từ các chi nhánh khác nếu cần.
+            </small>
+        </div>
+        
+        <div class="form-group">
+            <label for="max_active_orders">Số đơn tối đa cùng lúc</label>
+            <input type="number" id="max_active_orders" name="max_active_orders"
+                   min="1" max="20"
+                   value="{{ profile.max_active_orders|default:'5' }}"
+                   class="form-input">
+            <small style="color:#888; font-size:12px;">
+                Shipper sẽ không nhận thêm đơn khi đã đạt giới hạn này.
+            </small>
+        </div>
+        
+        <div class="form-group" style="display:flex; align-items:center; gap:12px;">
+            <input type="checkbox" id="is_available" name="is_available"
+                   {% if profile.is_available|default:'True' %}checked{% endif %}
+                   style="width:20px; height:20px; cursor:pointer;">
+            <label for="is_available" style="margin:0; font-weight:600; cursor:pointer;">
+                ✅ Shipper đang hoạt động và sẵn sàng nhận đơn
+            </label>
+        </div>
+        
+        <div style="display:flex; gap:12px; margin-top:24px;">
+            <button type="submit" class="btn btn-primary" style="flex:1;">
+                {% if shipper %}💾 Lưu thay đổi{% else %}✅ Tạo tài khoản Shipper{% endif %}
+            </button>
+            <a href="{% url 'admin_shipper_list' %}" class="btn btn-secondary" style="flex:1; text-align:center;">
+                Hủy bỏ
+            </a>
+        </div>
+    </form>
+</div>
+
+<style>
+.form-group { margin-bottom: 20px; }
+.form-group label { display:block; font-weight:600; margin-bottom:8px; color:#2c3e50; }
+.form-input { width:100%; padding:10px 14px; border:1.5px solid #ddd; border-radius:8px; font-size:14px; transition:border-color 0.2s; box-sizing:border-box; }
+.form-input:focus { border-color:#3498db; outline:none; }
+</style>
+{% endblock %}

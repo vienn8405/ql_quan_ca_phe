@@ -147,6 +147,13 @@ path('order/cancel/<int:order_id>/', views.cancel_order, name='cancel_order'),
     path('admin/deliveries/', views.admin_deliveries, name='admin_deliveries'),
     path('admin/deliveries/<int:order_id>/assign/', views.admin_assign_shipper, name='admin_assign_shipper'),
 
+    # ===== ADMIN QUẢN LÝ SHIPPER =====
+    path('admin/shippers/', views.admin_shipper_list, name='admin_shipper_list'),
+    path('admin/shippers/add/', views.admin_shipper_add, name='admin_shipper_add'),
+    path('admin/shippers/edit/<int:id>/', views.admin_shipper_edit, name='admin_shipper_edit'),
+    path('admin/shippers/delete/<int:id>/', views.admin_shipper_delete, name='admin_shipper_delete'),
+    path('admin/shippers/<int:id>/toggle-availability/', views.admin_shipper_toggle_availability, name='admin_shipper_toggle_availability'),
+    path('api/shippers/by-branch/', views.api_shippers_by_branch, name='api_shippers_by_branch'),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

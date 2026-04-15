@@ -1612,47 +1612,42 @@ def order_update_status(request, order_id, status):
 
     order = get_object_or_404(Order, id=order_id)
 
+    # Luồng trạng thái mới - KHÔNG cho phép ready_for_delivery -> delivering trực tiếp
     allowed_transitions = {
         'pending': ['confirmed', 'cancelled'],
         'confirmed': ['preparing', 'cancelled'],
-        'preparing': ['delivering', 'completed', 'cancelled'],
+        'preparing': ['ready_for_delivery', 'cancelled'],
+        'ready_for_delivery': ['cancelled'],  # ⚠️ Chỉ shipper mới được phép set delivering
         'delivering': ['completed', 'cancelled'],
         'completed': [],
         'cancelled': [],
     }
 
     if status not in allowed_transitions.get(order.status, []):
-        messages.error(request, "❌ Không thể chuyển trạng thái như vậy")
+        messages.error(request, f"❌ Không thể chuyển từ '{order.get_status_display()}' sang '{status}'")
         return redirect('order_list')
         
     old_status = order.status
 
     with transaction.atomic():
-        if status == 'cancelled' and order.status in ['pending', 'confirmed', 'preparing', 'delivering']:
+        if status == 'cancelled' and order.status in ['pending', 'confirmed', 'preparing', 'ready_for_delivery', 'delivering']:
             restore_order_inventory(order)
 
         order.status = status
 
         if order.order_type == 'delivery':
             if status == 'confirmed':
-                if order.delivery_status != 'delivered':
+                if order.delivery_status not in ['delivered', 'shipping', 'failed']:
                     order.delivery_status = 'assigned' if order.assigned_shipper else 'waiting'
-            elif status == 'delivering':
-                if not order.accepted_at and order.assigned_shipper:
-                    order.accepted_at = timezone.now()
-                if not order.started_delivery_at:
-                    order.started_delivery_at = timezone.now()
-                order.delivery_status = 'shipping'
             elif status == 'completed':
                 order.delivery_status = 'delivered'
                 order.delivered_at = timezone.now()
                 order.failed_at = None
                 order.failure_reason = ''
             elif status == 'cancelled':
-                order.delivery_status = 'failed'
-                order.failed_at = timezone.now()
-                if not order.failure_reason:
-                    order.failure_reason = 'Đơn hàng đã bị hủy'
+                # Không set delivery_status = failed khi admin hủy đơn
+                # Giữ nguyên trạng thái giao hàng hiện tại
+                pass
 
         order.save()
 
@@ -2954,13 +2949,55 @@ def _shipper_action_success(request, message):
 
 
 def _can_admin_assign_shipper(order):
+    """Kiểm tra admin có thể gán shipper cho đơn không."""
     if order.order_type != 'delivery':
         return False
     if order.status in ['completed', 'cancelled']:
         return False
-    if order.status not in ['confirmed', 'preparing', 'delivering']:
+    # Cho phép gán ở cả trạng thái ready_for_delivery (món đã pha xong, chờ lấy)
+    if order.status not in ['confirmed', 'preparing', 'ready_for_delivery', 'delivering']:
         return False
     if order.delivery_status in ['not_required', 'delivered', 'shipping']:
+        return False
+    return True
+
+
+def _can_shipper_start_delivery(order):
+    """Shipper có thể bắt đầu giao đơn không.
+    
+    Luồng mới:
+    - Admin đổi status: pending → confirmed → preparing → ready_for_delivery
+    - Admin gán shipper: delivery_status = 'assigned' (status vẫn là ready_for_delivery)
+    - Shipper nhận đơn: delivery_status = 'accepted' (order.status vẫn là ready_for_delivery)
+    - Shipper bắt đầu giao: delivery_status = 'shipping', order.status = 'delivering'
+    
+    Điều kiện để bắt đầu giao:
+    - delivery_status = 'accepted' (đã nhận đơn)
+    - order.status phải là 'ready_for_delivery' (món đã pha xong)
+    - KHÔNG cần kiểm tra order.status = 'delivering' vì ở bước này order.status vẫn là ready_for_delivery
+    """
+    if order.order_type != 'delivery':
+        return False
+    if order.status not in ['ready_for_delivery', 'delivering']:
+        return False
+    if order.delivery_status != 'accepted':
+        return False
+    return True
+
+
+def _can_shipper_complete_delivery(order):
+    """Shipper có thể hoàn tất giao đơn không.
+    
+    Điều kiện:
+    - delivery_status = 'shipping' (đang giao)
+    - order.status phải là 'delivering' hoặc 'ready_for_delivery'
+      (trường hợp ready_for_delivery xảy ra khi admin/shipper bỏ qua bước accepted)
+    """
+    if order.order_type != 'delivery':
+        return False
+    if order.status not in ['ready_for_delivery', 'delivering']:
+        return False
+    if order.delivery_status not in ['shipping', 'accepted']:
         return False
     return True
 
@@ -3120,7 +3157,8 @@ def shipper_accept_delivery(request, order_id):
         return _shipper_action_error(request, '❌ Bạn không được thao tác trên đơn này', status=403)
     if order.delivery_status != 'assigned':
         return _shipper_action_error(request, '❌ Chỉ đơn đã được gán mới có thể nhận')
-    if order.status not in ['confirmed', 'preparing']:
+    # ✅ Luồng mới: cho phép nhận ở cả ready_for_delivery (món đã pha xong)
+    if order.status not in ['confirmed', 'preparing', 'ready_for_delivery']:
         return _shipper_action_error(request, '❌ Đơn chưa sẵn sàng để shipper nhận')
 
     order.delivery_status = 'accepted'
@@ -3157,15 +3195,23 @@ def shipper_reject_delivery(request, order_id):
 @role_required('shipper')
 @require_POST
 def shipper_start_delivery(request, order_id):
+    """Bắt đầu giao đơn - shipper lấy hàng từ quán và bắt đầu delivery.
+    
+    Luồng mới:
+    - Điều kiện: delivery_status='accepted' AND status='ready_for_delivery' (món đã pha xong)
+    - Kết quả: delivery_status='shipping', status='delivering'
+    """
     current_user = _get_current_app_user(request)
     order = get_object_or_404(Order, id=order_id, order_type='delivery')
 
     if not current_user or order.assigned_shipper_id != current_user.id:
         return _shipper_action_error(request, '❌ Bạn không được thao tác trên đơn này', status=403)
-    if order.delivery_status != 'accepted':
-        return _shipper_action_error(request, '❌ Bạn phải nhận đơn trước khi bắt đầu giao')
-    if order.status not in ['confirmed', 'preparing', 'delivering']:
-        return _shipper_action_error(request, '❌ Trạng thái đơn hiện tại không cho phép bắt đầu giao')
+    if not _can_shipper_start_delivery(order):
+        return _shipper_action_error(
+            request, 
+            '❌ Bạn phải NHẬN ĐƠN trước khi bắt đầu giao. '
+            'Đơn cần có trạng thái "Chờ lấy hàng" và bạn đã nhận đơn.'
+        )
 
     if not order.accepted_at:
         order.accepted_at = timezone.now()
@@ -3435,4 +3481,232 @@ def export_revenue_pdf_view(request):
     data = _get_revenue_data(request)
     from cafe.services.pdf_service import export_revenue_pdf
     return export_revenue_pdf(data)
+
+
+# ==================== ADMIN QUẢN LÝ SHIPPER ====================
+
+@role_required('admin')
+def admin_shipper_list(request):
+    """Danh sách tài khoản shipper + profile của họ."""
+    branch_id = request.GET.get('branch_id', '').strip()
+    availability_filter = request.GET.get('availability', '')
+
+    shippers = (
+        User.objects
+        .filter(role='shipper')
+        .select_related('shipper_profile__assigned_branch')
+        .order_by('username')
+    )
+
+    if branch_id:
+        shippers = shippers.filter(shipper_profile__assigned_branch_id=branch_id)
+
+    if availability_filter == 'available':
+        shippers = shippers.filter(shipper_profile__is_available=True)
+    elif availability_filter == 'busy':
+        shippers = shippers.filter(shipper_profile__is_available=False)
+
+    branches = CafeBranch.objects.filter(is_active=True).order_by('name')
+
+    # Gán thêm stats cho từng shipper
+    for s in shippers:
+        try:
+            profile = s.shipper_profile
+            s.active_orders = profile.get_active_orders_count()
+            s.can_accept = profile.can_accept_more_orders()
+        except Exception:
+            s.active_orders = 0
+            s.can_accept = True
+
+    return render(request, 'cafe/admin_shipper_list.html', {
+        'shippers': shippers,
+        'branches': branches,
+        'selected_branch_id': branch_id,
+        'availability_filter': availability_filter,
+    })
+
+
+@role_required('admin')
+def admin_shipper_add(request):
+    """Tạo tài khoản shipper mới + profile."""
+    branches = CafeBranch.objects.filter(is_active=True).order_by('name')
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        branch_id = request.POST.get('branch_id')
+        is_available = request.POST.get('is_available') == 'on'
+        max_active_orders = int(request.POST.get('max_active_orders', 5))
+
+        if not username or not password:
+            messages.error(request, '❌ Vui lòng nhập tên đăng nhập và mật khẩu')
+            return redirect('admin_shipper_add')
+
+        if User.objects.filter(username=username).exists():
+            messages.error(request, '❌ Tên đăng nhập đã tồn tại')
+            return redirect('admin_shipper_add')
+
+        branch = CafeBranch.objects.filter(id=branch_id).first() if branch_id else None
+
+        with transaction.atomic():
+            user = User.objects.create(
+                username=username,
+                password=password,  # TODO: Nên hash password trong production
+                role='shipper',
+                is_admin=False,
+            )
+
+            from .models import ShipperProfile
+            ShipperProfile.objects.create(
+                user=user,
+                phone=phone,
+                assigned_branch=branch,
+                is_available=is_available,
+                max_active_orders=max_active_orders,
+            )
+
+        messages.success(request, f'✅ Đã tạo tài khoản shipper: {username}')
+        return redirect('admin_shipper_list')
+
+    return render(request, 'cafe/admin_shipper_form.html', {
+        'shipper': None,
+        'branches': branches,
+    })
+
+
+@role_required('admin')
+def admin_shipper_edit(request, id):
+    """Sửa thông tin shipper (profile)."""
+    user = get_object_or_404(User, id=id, role='shipper')
+    branches = CafeBranch.objects.filter(is_active=True).order_by('name')
+
+    try:
+        profile = user.shipper_profile
+    except Exception:
+        from .models import ShipperProfile
+        profile = ShipperProfile.objects.create(
+            user=user,
+            phone='',
+            assigned_branch=None,
+            is_available=True,
+            max_active_orders=5,
+        )
+
+    if request.method == 'POST':
+        phone = request.POST.get('phone', '').strip()
+        branch_id = request.POST.get('branch_id')
+        is_available = request.POST.get('is_available') == 'on'
+        max_active_orders = int(request.POST.get('max_active_orders', 5))
+
+        branch = CafeBranch.objects.filter(id=branch_id).first() if branch_id else None
+
+        profile.phone = phone
+        profile.assigned_branch = branch
+        profile.is_available = is_available
+        profile.max_active_orders = max_active_orders
+        profile.save()
+
+        messages.success(request, f'✅ Đã cập nhật thông tin shipper: {user.username}')
+        return redirect('admin_shipper_list')
+
+    return render(request, 'cafe/admin_shipper_form.html', {
+        'shipper': user,
+        'profile': profile,
+        'branches': branches,
+    })
+
+
+@role_required('admin')
+def admin_shipper_delete(request, id):
+    """Xóa tài khoản shipper."""
+    user = get_object_or_404(User, id=id, role='shipper')
+    username = user.username
+
+    # Kiểm tra còn đơn đang giao không
+    active_orders = Order.objects.filter(
+        assigned_shipper=user,
+        delivery_status__in=['assigned', 'accepted', 'shipping']
+    ).count()
+
+    if active_orders > 0:
+        messages.error(
+            request,
+            f'❌ Shipper {username} đang có {active_orders} đơn đang giao. Không thể xóa.'
+        )
+        return redirect('admin_shipper_list')
+
+    user.delete()
+    messages.success(request, f'✅ Đã xóa tài khoản shipper: {username}')
+    return redirect('admin_shipper_list')
+
+
+@role_required('admin')
+def admin_shipper_toggle_availability(request, id):
+    """Toggle trạng thái khả dụng của shipper (bật/tắt nhận đơn)."""
+    user = get_object_or_404(User, id=id, role='shipper')
+
+    try:
+        profile = user.shipper_profile
+    except Exception:
+        messages.error(request, '❌ Shipper chưa có profile')
+        return redirect('admin_shipper_list')
+
+    profile.is_available = not profile.is_available
+    profile.save()
+
+    status_text = 'Đang nhận đơn' if profile.is_available else 'Tạm ngưng'
+    messages.success(request, f'✅ Shipper {user.username}: {status_text}')
+    return redirect('admin_shipper_list')
+
+
+def api_shippers_by_branch(request):
+    """API trả danh sách shipper theo chi nhánh (dùng cho dropdown gán shipper).
+    
+    Query params:
+    - branch_id: ID chi nhánh
+    - only_available: 1 để chỉ lấy shipper đang rảnh
+    """
+    branch_id = request.GET.get('branch_id', '').strip()
+    only_available = request.GET.get('only_available', '0') == '1'
+
+    if not branch_id:
+        return JsonResponse({'error': 'Thiếu branch_id'}, status=400)
+
+    try:
+        branch_id_int = int(branch_id)
+    except ValueError:
+        return JsonResponse({'error': 'branch_id không hợp lệ'}, status=400)
+
+    shippers = (
+        User.objects
+        .filter(role='shipper', shipper_profile__assigned_branch_id=branch_id_int)
+        .select_related('shipper_profile')
+        .order_by('username')
+    )
+
+    if only_available:
+        shippers = shippers.filter(shipper_profile__is_available=True)
+
+    result = []
+    for s in shippers:
+        try:
+            profile = s.shipper_profile
+            active = profile.get_active_orders_count()
+            can_accept = profile.can_accept_more_orders()
+        except Exception:
+            active = 0
+            can_accept = True
+
+        result.append({
+            'id': s.id,
+            'username': s.username,
+            'phone': profile.phone if 'profile' in dir() else '',
+            'active_orders': active,
+            'max_orders': profile.max_active_orders if 'profile' in dir() else 5,
+            'can_accept': can_accept,
+            'is_available': profile.is_available if 'profile' in dir() else True,
+        })
+
+    return JsonResponse(result, safe=False)
 

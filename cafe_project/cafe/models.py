@@ -26,6 +26,58 @@ class Category(models.Model):
     def __str__(self):
         return self.name
 
+
+# ==================== SHIPPER PROFILE ====================
+
+class ShipperProfile(models.Model):
+    """
+    Profile mở rộng cho tài khoản shipper.
+    Mỗi User với role='shipper' có một ShipperProfile tương ứng.
+    """
+    user = models.OneToOneField(
+        'User',
+        on_delete=models.CASCADE,
+        related_name='shipper_profile'
+    )
+    phone = models.CharField(max_length=20, blank=True, verbose_name='Số điện thoại')
+    
+    # Chi nhánh shipper phụ trách
+    assigned_branch = models.ForeignKey(
+        'CafeBranch',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='shippers'
+    )
+    
+    # Trạng thái khả dụng
+    is_available = models.BooleanField(default=True, verbose_name='Đang hoạt động')
+    
+    # Số đơn tối đa có thể nhận cùng lúc
+    max_active_orders = models.IntegerField(default=5, verbose_name='Số đơn tối đa cùng lúc')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Shipper'
+        verbose_name_plural = 'Shipper Profiles'
+    
+    def __str__(self):
+        return f"{self.user.username} ({self.assigned_branch.name if self.assigned_branch else 'Chưa gán chi nhánh'})"
+    
+    def get_active_orders_count(self):
+        """Đếm số đơn đang hoạt động của shipper"""
+        from .models import Order
+        return Order.objects.filter(
+            assigned_shipper=self.user,
+            delivery_status__in=['assigned', 'accepted', 'shipping']
+        ).count()
+    
+    def can_accept_more_orders(self):
+        """Kiểm tra shipper còn slot nhận đơn"""
+        return self.get_active_orders_count() < self.max_active_orders
+
 #tên món  
 class Product(models.Model):
     name = models.CharField(max_length=100)
@@ -56,6 +108,7 @@ class Order(models.Model):
         ("pending", "Chờ xử lý"),
         ("confirmed", "Đã xác nhận"),
         ("preparing", "Đang pha chế"),
+        ("ready_for_delivery", "Chờ lấy hàng"),
         ("delivering", "Đang giao"),
         ("completed", "Hoàn tất"),
         ("cancelled", "Đã hủy"),

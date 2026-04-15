@@ -92,8 +92,10 @@
                         <span class="badge badge-blue">Đã xác nhận</span>
                     {% elif o.status == 'preparing' %}
                         <span class="badge badge-orange">Đang pha chế</span>
+                    {% elif o.status == 'ready_for_delivery' %}
+                        <span class="badge badge-purple">⏳ Chờ lấy hàng</span>
                     {% elif o.status == 'delivering' %}
-                        <span class="badge badge-blue">Đang giao</span>
+                        <span class="badge badge-blue">🚚 Đang giao</span>
                     {% elif o.status == 'completed' %}
                         <span class="badge badge-green">Hoàn tất</span>
                     {% elif o.status == 'cancelled' %}
@@ -158,9 +160,16 @@
                             {% endif %}
                             <a href="{% url 'order_update_status' o.id 'cancelled' %}" class="action-btn danger">Hủy đơn</a>
 
+                        {% elif o.status == 'ready_for_delivery' %}
+                            {% if o.order_type == 'delivery' %}
+                                <a href="{% url 'admin_deliveries' %}" class="action-btn light">📦 Đi tới logistics</a>
+                            {% else %}
+                                <a href="{% url 'order_update_status' o.id 'completed' %}" class="action-btn success">✅ Hoàn tất</a>
+                            {% endif %}
+
                         {% elif o.status == 'delivering' %}
                             {% if o.order_type == 'delivery' %}
-                                <a href="{% url 'admin_deliveries' %}" class="action-btn light">Theo dõi logistics</a>
+                                <a href="{% url 'admin_deliveries' %}" class="action-btn light">🚚 Theo dõi logistics</a>
                             {% else %}
                                 <a href="{% url 'order_update_status' o.id 'completed' %}" class="action-btn success">Giao xong</a>
                                 <a href="{% url 'order_update_status' o.id 'cancelled' %}" class="action-btn danger">Giao thất bại</a>
@@ -189,4 +198,8 @@
     </p>
 </div>
 {% endif %}
+
+<style>
+.badge-purple { background:#e8daef; color:#6c3483; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+</style>
 {% endblock %}
