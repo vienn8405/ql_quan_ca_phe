@@ -358,11 +358,13 @@ def export_revenue_excel(data):
     Xuất báo cáo doanh thu ra file Excel (.xlsx).
 
     Args:
-        data: dict chứa các key từ revenue_report view:
+        data: dict chứa các key từ revenue_report view / _get_revenue_data:
             - date_from, date_to
-            - total_revenue, total_orders, avg_daily
+            - total_revenue (net_order_revenue), total_orders, avg_daily
+            - gross_item_revenue, discount_total, delivery_fee_total
             - labels, revenues, order_counts  (doanh thu theo ngày)
-            - top_products  (top sản phẩm)
+            - top_products (theo số lượng)
+            - top_products_by_revenue (theo doanh thu)
             - type_labels, type_counts, type_revenues  (theo loại đơn)
     """
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -378,7 +380,6 @@ def export_revenue_excel(data):
     header_font = Font(bold=True, color='FFFFFF', size=11)
     header_fill = PatternFill(start_color='5B3A1A', end_color='5B3A1A', fill_type='solid')
     label_font = Font(bold=True, size=11, color='5B3A1A')
-    value_font = Font(size=11)
     money_format = '#,##0'
     thin_border = Border(
         left=Side(style='thin'), right=Side(style='thin'),
@@ -389,13 +390,13 @@ def export_revenue_excel(data):
     row = 1
 
     # ===== TITLE =====
-    ws.merge_cells('A1:E1')
+    ws.merge_cells('A1:G1')
     cell = ws.cell(row=1, column=1, value='BAO CAO DOANH THU - CAFEFLOW')
     cell.font = title_font
     cell.alignment = center_align
     row = 2
 
-    ws.merge_cells('A2:E2')
+    ws.merge_cells('A2:G2')
     ts = datetime.now().strftime('%d/%m/%Y %H:%M')
     cell = ws.cell(row=2, column=1, value=f'Xuat bao cao: {ts}')
     cell.font = Font(size=10, italic=True, color='808080')
@@ -404,15 +405,21 @@ def export_revenue_excel(data):
 
     date_from = data.get('date_from', '')
     date_to = data.get('date_to', '')
-    ws.merge_cells('A3:E3')
+    ws.merge_cells('A3:G3')
     cell = ws.cell(row=3, column=1, value=f'Thoi gian: {date_from} den {date_to}')
     cell.font = Font(size=10, color='808080')
     cell.alignment = center_align
     row = 5
 
-    # ===== SUMMARY =====
+    # ===== SUMMARY - 4 CHỈ SỐ CHÍNH =====
+    ws.cell(row=row, column=1, value='TOM TAT DOANH THU').font = Font(bold=True, size=12, color='5B3A1A')
+    row += 1
+
     summary_items = [
-        ('Tong doanh thu:', data.get('total_revenue', 0)),
+        ('Doanh thu thuc thu (net):', data.get('total_revenue', 0)),
+        ('Tong doanh thu mon (gross):', data.get('gross_item_revenue', 0)),
+        ('Tong giam gia voucher:', data.get('discount_total', 0)),
+        ('Tong phi giao hang:', data.get('delivery_fee_total', 0)),
         ('Tong so don hoan thanh:', data.get('total_orders', 0)),
         ('TB doanh thu / ngay:', data.get('avg_daily', 0)),
     ]
@@ -426,42 +433,18 @@ def export_revenue_excel(data):
 
     row += 1
 
-    # ===== DOANH THU THEO NGÀY =====
-    labels = data.get('labels', [])
-    revenues = data.get('revenues', [])
-    order_counts = data.get('order_counts', [])
-
-    if labels:
-        ws.cell(row=row, column=1, value='DOANH THU THEO NGAY').font = Font(bold=True, size=12, color='5B3A1A')
-        row += 1
-
-        daily_headers = ['Ngay', 'Doanh thu (d)', 'So don']
-        for col, h in enumerate(daily_headers, 1):
-            c = ws.cell(row=row, column=col, value=h)
-            c.font = header_font
-            c.fill = header_fill
-            c.alignment = center_align
-            c.border = thin_border
-        row += 1
-
-        for i, label in enumerate(labels):
-            ws.cell(row=row, column=1, value=label).border = thin_border
-            c = ws.cell(row=row, column=2, value=revenues[i] if i < len(revenues) else 0)
-            c.number_format = money_format
-            c.border = thin_border
-            c = ws.cell(row=row, column=3, value=order_counts[i] if i < len(order_counts) else 0)
-            c.border = thin_border
-            row += 1
-
-        row += 1
-
-    # ===== TOP SẢN PHẨM =====
+    # ===== TOP SẢN PHẨM - 2 BẢNG =====
     top_products = data.get('top_products', [])
-    if top_products:
-        ws.cell(row=row, column=1, value='TOP SAN PHAM BAN CHAY').font = Font(bold=True, size=12, color='5B3A1A')
+    top_by_rev = data.get('top_products_by_revenue', [])
+
+    if top_products or top_by_rev:
+        ws.cell(row=row, column=1, value='TOP SAN PHAM').font = Font(bold=True, size=12, color='5B3A1A')
         row += 1
 
-        prod_headers = ['#', 'San pham', 'So luong ban']
+        # Bảng 1: Theo số lượng
+        ws.cell(row=row, column=1, value='Theo so luong ban').font = Font(bold=True, size=11, color='5B3A1A')
+        row += 1
+        prod_headers = ['#', 'San pham', 'So luong', 'Doanh thu mon (d)']
         for col, h in enumerate(prod_headers, 1):
             c = ws.cell(row=row, column=col, value=h)
             c.font = header_font
@@ -474,6 +457,31 @@ def export_revenue_excel(data):
             ws.cell(row=row, column=1, value=idx).border = thin_border
             ws.cell(row=row, column=2, value=p.get('product__name', '')).border = thin_border
             ws.cell(row=row, column=3, value=p.get('total_qty', 0)).border = thin_border
+            c = ws.cell(row=row, column=4, value=p.get('item_revenue', 0))
+            c.number_format = money_format
+            c.border = thin_border
+            row += 1
+
+        row += 1
+
+        # Bảng 2: Theo doanh thu
+        ws.cell(row=row, column=1, value='Theo doanh thu').font = Font(bold=True, size=11, color='5B3A1A')
+        row += 1
+        for col, h in enumerate(prod_headers, 1):
+            c = ws.cell(row=row, column=col, value=h)
+            c.font = header_font
+            c.fill = header_fill
+            c.alignment = center_align
+            c.border = thin_border
+        row += 1
+
+        for idx, p in enumerate(top_by_rev, 1):
+            ws.cell(row=row, column=1, value=idx).border = thin_border
+            ws.cell(row=row, column=2, value=p.get('product__name', '')).border = thin_border
+            ws.cell(row=row, column=3, value=p.get('total_qty', 0)).border = thin_border
+            c = ws.cell(row=row, column=4, value=p.get('item_revenue', 0))
+            c.number_format = money_format
+            c.border = thin_border
             row += 1
 
         row += 1
@@ -487,7 +495,7 @@ def export_revenue_excel(data):
         ws.cell(row=row, column=1, value='DOANH THU THEO LOAI DON').font = Font(bold=True, size=12, color='5B3A1A')
         row += 1
 
-        type_headers = ['Loai don', 'So don', 'Doanh thu (d)']
+        type_headers = ['Loai don', 'So don', 'Doanh thu thuc thu (d)']
         for col, h in enumerate(type_headers, 1):
             c = ws.cell(row=row, column=col, value=h)
             c.font = header_font
@@ -506,10 +514,10 @@ def export_revenue_excel(data):
 
     # ===== AUTO WIDTH =====
     ws.column_dimensions['A'].width = 25
-    ws.column_dimensions['B'].width = 25
-    ws.column_dimensions['C'].width = 18
-    ws.column_dimensions['D'].width = 18
-    ws.column_dimensions['E'].width = 18
+    ws.column_dimensions['B'].width = 28
+    ws.column_dimensions['C'].width = 16
+    ws.column_dimensions['D'].width = 20
+    ws.column_dimensions['E'].width = 16
 
     # Freeze row 1
     ws.freeze_panes = 'A5'

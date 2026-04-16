@@ -81,22 +81,12 @@
                     <td>
                         {% if m.display_quantity <= 0 %}
                             <span class="badge badge-red">Hết hàng</span>
-                        {% elif m.display_quantity <= m.display_min_quantity %}
+                        {% elif m.display_quantity < m.display_min_quantity %}
                             <span class="badge badge-orange">Sắp hết hàng</span>
                         {% else %}
                             <span class="badge badge-green">Còn hàng</span>
                         {% endif %}
-                        {% if m.display_min_quantity > 0 %}
-                        <div class="stock-bar">
-                            {% if m.display_quantity <= 0 %}
-                                <div class="stock-bar-fill danger"></div>
-                            {% elif m.display_quantity >= m.display_min_quantity %}
-                                <div class="stock-bar-fill ok"></div>
-                            {% else %}
-                                <div class="stock-bar-fill warning" style="width:{% widthratio m.display_quantity m.display_min_quantity 100 %}%;"></div>
-                            {% endif %}
-                        </div>
-                        {% endif %}
+                        <span style="display:inline-block;margin-left:8px;">{{ m.bar_percent }}%</span>
                     </td>
                     <td>
                         <div class="table-action-wrap">

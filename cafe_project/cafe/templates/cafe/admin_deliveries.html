@@ -28,7 +28,7 @@
     <a href="?status=failed" class="btn {% if current_status == 'failed' %}btn-primary{% else %}btn-secondary{% endif %}">⚠️ Trục trặc</a>
 </div>
 
-{% if orders %}
+{% if orders_with_shippers %}
 <div class="order-table-box">
     <table class="order-table-custom">
         <thead>
@@ -40,39 +40,41 @@
                 <th class="col-money">Phí giao</th>
                 <th class="col-status">Trạng thái đơn</th>
                 <th class="col-delivery">Trạng thái giao</th>
-                <th>Shipper phụ trách</th>
+                <th style="min-width:220px;">Shipper phụ trách</th>
                 <th style="min-width:190px;">Mốc giao hàng</th>
                 <th class="col-date">Thời gian tạo</th>
                 <th class="col-action">Thao tác</th>
             </tr>
         </thead>
         <tbody>
-            {% for o in orders %}
-            <tr>
+            {% for item in orders_with_shippers %}
+            {% with o=item.order shipper_list=item.shipper_list best_shipper=item.best_shipper %}
+            <tr data-order-id="{{ o.id }}" data-loop-idx="{{ forloop.counter }}">
                 <td class="col-id">#{{ o.id }}</td>
-                
+
                 <td class="col-product">
                     <div style="font-weight:600; font-size:14px; color:#1a1a1a;">{{ o.customer_name }}</div>
                     <div style="font-size:12px; color:#666; margin-top:4px;">📱 <a href="tel:{{ o.customer_phone }}" style="color:#2980b9;text-decoration:none;">{{ o.customer_phone }}</a></div>
                 </td>
-                
+
                 <td class="col-branch">
                     {% if o.branch %}
                         <b>☕ {{ o.branch.name }}</b>
+                        <div style="font-size:11px; color:#888; margin-top:2px;">{{ o.branch.address|truncatechars:30 }}</div>
                     {% else %}
                         <span class="muted-text">Chưa gán</span>
                     {% endif %}
                 </td>
-                
+
                 <td>
                     <div style="font-size:13px; line-height:1.4;">{{ o.customer_address|default:"Không có dữ liệu" }}</div>
                     {% if o.customer_lat and o.customer_lng %}
                         <div style="font-size:11px; margin-top:4px; color:#888;">GPS: {{ o.customer_lat|floatformat:4 }}, {{ o.customer_lng|floatformat:4 }}</div>
                     {% endif %}
                 </td>
-                
+
                 <td class="col-money">{{ o.delivery_fee|vnd }}</td>
-                
+
                 <td class="col-status">
                     {% if o.status == 'pending' %}
                         <span class="badge badge-orange">Chờ xử lý</span>
@@ -92,7 +94,7 @@
                         <span class="badge badge-orange">{{ o.get_status_display }}</span>
                     {% endif %}
                 </td>
-                
+
                 <td class="col-delivery">
                     {% if o.delivery_status == 'waiting' %}
                         <span class="badge badge-orange">🕒 Chờ gán shipper</span>
@@ -110,7 +112,7 @@
                         <span class="badge badge-light">{{ o.get_delivery_status_display }}</span>
                     {% endif %}
                 </td>
-                
+
                 <td>
                     {% if o.assigned_shipper %}
                         <div style="font-weight:600;">{{ o.assigned_shipper.username }}</div>
@@ -130,36 +132,56 @@
                         <div style="margin-top:4px; color:#c0392b;">Lý do: {{ o.failure_reason }}</div>
                     {% endif %}
                 </td>
-                
+
                 <td class="col-date">{{ o.created_at|date:"H:i d/m/Y" }}</td>
-                
+
                 <td class="col-action">
                     <div class="action-group action-group-main">
                         <a href="{% url 'admin_order_detail' o.id %}" class="action-btn neutral">🔍 Chi tiết</a>
                     </div>
                     {% if o.delivery_status != 'delivered' and o.status != 'completed' and o.status != 'cancelled' and o.delivery_status != 'shipping' %}
-                    <form method="post" action="{% url 'admin_assign_shipper' o.id %}" 
-                          style="margin-top:8px; display:flex; flex-direction:column; gap:8px;" 
-                          onsubmit="return confirmAssign(this, '{{ o.assigned_shipper.username|default:'' }}')">
+                    <form method="post" action="{% url 'admin_assign_shipper' o.id %}" class="shipper-assign-form" data-loop="{{ forloop.counter }}">
                         {% csrf_token %}
-                        <select name="shipper_id" class="form-input" required style="min-width:170px;" 
-                                onchange="showShipperInfo(this)">
+
+                        {# Gợi ý shipper tốt nhất #}
+                        {% if best_shipper %}
+                        <div class="best-shipper-hint">
+                            ⭐ Nên gán: {{ best_shipper.username }}
+                            {% if best_shipper.is_available and best_shipper.can_accept %}
+                                <span class="status-ok"> (Rảnh – {{ best_shipper.active_orders }}/{{ best_shipper.max_orders }})</span>
+                            {% else %}
+                                <span class="status-warn">
+                                {% if not best_shipper.is_available %}Tạm ngưng{% else %}Đầy đơn{% endif %}
+                                </span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <select name="shipper_id" class="shipper-select" required>
                             <option value="">-- Chọn shipper --</option>
-                            {% for shipper in shippers %}
-                                {% with shipper.shipper_profile as sp %}
-                                <option value="{{ shipper.id }}" 
-                                        data-branch="{% if sp %}{{ sp.assigned_branch_id }}{% endif %}"
-                                        data-available="{% if sp %}{{ sp.is_available|yesno:'true,false' }}{% endif %}"
-                                        data-active="{% if sp %}{{ sp.get_active_orders_count }}{% endif %}"
-                                        data-max="{% if sp %}{{ sp.max_active_orders }}{% endif %}"
-                                        {% if o.assigned_shipper_id == shipper.id %}selected{% endif %}>
-                                    {% if sp %}{% if sp.is_available %}🟢{% else %}🔴{% endif %}{% else %}⚪{% endif %} {{ shipper.username }}
-                                    {% if sp %}({{ sp.get_active_orders_count }}/{{ sp.max_active_orders }}){% endif %}
-                                </option>
-                                {% endwith %}
+                            {% for shipper in shipper_list %}
+                            <option value="{{ shipper.id }}"
+                                    data-samebranch="{% if shipper.is_same_branch %}true{% else %}false{% endif %}"
+                                    data-available="{% if shipper.is_available %}true{% else %}false{% endif %}"
+                                    data-active="{{ shipper.active_orders }}"
+                                    data-max="{{ shipper.max_orders }}"
+                                    data-canaccept="{% if shipper.can_accept %}true{% else %}false{% endif %}"
+                                    data-branch="{{ shipper.assigned_branch_name|default:'' }}"
+                                    data-phone="{{ shipper.phone|default:'' }}"
+                                    data-best="{% if shipper.id == best_shipper.id %}true{% else %}false{% endif %}"
+                                    {% if o.assigned_shipper_id == shipper.id %}selected{% endif %}>
+                                {% if shipper.is_same_branch %}🏪{% else %}🏢{% endif %}
+                                {% if shipper.is_available %}🟢{% else %}🔴{% endif %}
+                                {{ shipper.username }}
+                                ({{ shipper.active_orders }}/{{ shipper.max_orders }})
+                                {% if shipper.is_same_branch %} ★{% else %} {{ shipper.assigned_branch_name|default:'không rõ chi nhánh' }}{% endif %}
+                                {% if shipper.id == best_shipper.id %} ⭐{% endif %}
+                            </option>
                             {% endfor %}
                         </select>
-                        <div id="shipper-info-{{ forloop.counter }}" style="font-size:11px; color:#666; min-height:16px;"></div>
+
+                        <div class="shipper-info"></div>
+                        <div class="shipper-hint"></div>
                         <button type="submit" class="action-btn edit">
                             {% if o.assigned_shipper %}🔁 Gán lại shipper{% else %}📌 Gán shipper{% endif %}
                         </button>
@@ -167,6 +189,7 @@
                     {% endif %}
                 </td>
             </tr>
+            {% endwith %}
             {% endfor %}
         </tbody>
     </table>
@@ -181,55 +204,102 @@
 
 <style>
 .badge-purple { background:#e8daef; color:#6c3483; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+.best-shipper-hint {
+    background:#e8f8f0; border:1px solid #27ae60; border-radius:8px;
+    padding:6px 10px; font-size:11px; color:#1e8449; font-weight:600;
+}
+.best-shipper-hint .status-ok { font-weight:400; color:#27ae60; }
+.best-shipper-hint .status-warn { font-weight:400; color:#e67e22; }
+.shipper-select { min-width:175px; }
+.shipper-info { font-size:11px; color:#666; min-height:16px; }
+.shipper-hint { font-size:10px; color:#888; min-height:14px; }
 </style>
 
 <script>
-function showShipperInfo(select) {
-    const selected = select.options[select.selectedIndex];
-    const infoDiv = select.nextElementSibling;
-    if (!selected || !selected.value) {
-        infoDiv.textContent = '';
-        return;
-    }
-    const available = selected.dataset.available === 'true';
-    const active = parseInt(selected.dataset.active) || 0;
-    const max = parseInt(selected.dataset.max) || 5;
-    const canAccept = active < max;
-    
-    if (!available) {
-        infoDiv.innerHTML = '<span style="color:#e74c3c;">🔴 Shipper đang TẠM NGƯNG - không thể nhận đơn</span>';
-    } else if (!canAccept) {
-        infoDiv.innerHTML = '<span style="color:#e67e22;">⚠️ Shipper đã đạt giới hạn đơn (' + active + '/' + max + ')</span>';
-    } else {
-        infoDiv.innerHTML = '<span style="color:#27ae60;">🟢 Còn slot: ' + (max - active) + '/' + max + '</span>';
-    }
-}
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Gán sự kiện cho tất cả form shipper-assign-form ---
+    document.querySelectorAll('.shipper-assign-form').forEach(function(form) {
+        var select = form.querySelector('.shipper-select');
+        var infoDiv = form.querySelector('.shipper-info');
+        var hintDiv = form.querySelector('.shipper-hint');
+        var submitBtn = form.querySelector('button[type="submit"]');
 
-function confirmAssign(form, currentShipper) {
-    const select = form.querySelector('select[name="shipper_id"]');
-    const selected = select.options[select.selectedIndex];
-    if (!selected || !selected.value) return false;
-    
-    const available = selected.dataset.available === 'true';
-    const active = parseInt(selected.dataset.active) || 0;
-    const max = parseInt(selected.dataset.max) || 5;
-    const canAccept = active < max;
-    
-    if (!available) {
-        alert('❌ Shipper này đang TẠM NGƯNG. Không thể gán đơn.');
-        return false;
-    }
-    
-    if (!canAccept) {
-        alert('⚠️ Shipper ' + selected.text.trim() + ' đã đạt giới hạn ' + max + ' đơn cùng lúc. Vẫn gán?');
-    }
-    
-    return true;
-}
+        function getShipperData() {
+            if (!select || !select.value) return null;
+            var opt = select.options[select.selectedIndex];
+            return {
+                sameBranch: opt.dataset.samebranch === 'true',
+                available: opt.dataset.available === 'true',
+                active: parseInt(opt.dataset.active) || 0,
+                max: parseInt(opt.dataset.max) || 5,
+                canAccept: opt.dataset.canaccept === 'true',
+                branchName: opt.dataset.branch || '',
+                phone: opt.dataset.phone || '',
+                isBest: opt.dataset.best === 'true'
+            };
+        }
 
-// Auto-show info for selected options on page load
-document.querySelectorAll('select[name="shipper_id"]').forEach(function(sel) {
-    if (sel.value) showShipperInfo(sel);
+        function updateInfo() {
+            var data = getShipperData();
+            if (!data) {
+                infoDiv.innerHTML = '';
+                hintDiv.innerHTML = '';
+                if (submitBtn) submitBtn.style.display = 'none';
+                return;
+            }
+            if (submitBtn) submitBtn.style.display = '';
+
+            if (!data.available) {
+                infoDiv.innerHTML = '<span style="color:#e74c3c;">🔴 Shipper đang TẠM NGƯNG – không thể nhận đơn</span>';
+                hintDiv.innerHTML = '';
+            } else if (!data.canAccept) {
+                infoDiv.innerHTML = '<span style="color:#e67e22;">⚠️ Shipper đã đạt giới hạn đơn (' + data.active + '/' + data.max + ')</span>';
+                hintDiv.innerHTML = '';
+            } else if (!data.sameBranch) {
+                infoDiv.innerHTML = '<span style="color:#8e44ad;">🏢 Shipper thuộc chi nhánh: ' + data.branchName + '</span>';
+                hintDiv.innerHTML = '<span style="color:#e67e22;">⚠️ Cảnh báo: Shipper không cùng chi nhánh với đơn này!</span>';
+            } else {
+                var slotsLeft = data.max - data.active;
+                infoDiv.innerHTML = '<span style="color:#27ae60;">🟢 Cùng chi nhánh – Còn ' + slotsLeft + ' slot</span>';
+                hintDiv.innerHTML = '';
+            }
+        }
+
+        select.addEventListener('change', updateInfo);
+        updateInfo();
+    });
+
+    // --- Submit form với xác nhận ---
+    document.querySelectorAll('.shipper-assign-form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            var select = form.querySelector('.shipper-select');
+            if (!select || !select.value) return;
+
+            var opt = select.options[select.selectedIndex];
+            var sameBranch = opt.dataset.samebranch === 'true';
+            var available = opt.dataset.available === 'true';
+            var canAccept = opt.dataset.canaccept === 'true';
+            var max = parseInt(opt.dataset.max) || 5;
+
+            if (!available) {
+                e.preventDefault();
+                alert('❌ Shipper này đang TẠM NGƯNG. Không thể gán đơn.');
+                return;
+            }
+
+            if (!canAccept) {
+                e.preventDefault();
+                var confirmed = confirm('⚠️ Shipper đã đạt giới hạn ' + max + ' đơn cùng lúc. Bạn vẫn muốn gán?');
+                if (!confirmed) return;
+            }
+
+            if (!sameBranch) {
+                e.preventDefault();
+                var confirmed = confirm('⚠️ Shipper "' + opt.text.trim() + '" không cùng chi nhánh với đơn này. Bạn vẫn muốn gán?');
+                if (!confirmed) return;
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

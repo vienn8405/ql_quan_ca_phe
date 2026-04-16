@@ -1,9 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from cafe.models import User, Product, Order, Category, Inventory, Employee, OrderItem, RawMaterial, BranchMaterialStock, ProductRecipe, StockLog, CafeBranch, Table, Voucher, Attendance, Supplier, SupplierOrder, WorkShift, ShiftAssignment
+from cafe.models import User, Product, Order, Category, Inventory, Employee, OrderItem, RawMaterial, BranchMaterialStock, ProductRecipe, StockLog, CafeBranch, Table, Voucher, Attendance, Supplier, SupplierOrder, WorkShift, ShiftAssignment, CustomerProfile, AuditLog
 from django.http import HttpResponse
 from django.utils import timezone
 from django.core.serializers import serialize
-from cafe.models import CafeBranch
 from django.http import JsonResponse
 from django.urls import reverse
 from django.contrib.gis.geos import Point
@@ -13,6 +12,9 @@ from django.contrib import messages
 from django.db import models, transaction
 from django.views.decorators.http import require_POST
 from functools import wraps
+from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
+from django.views.decorators.http import require_POST
 
 
 # ==================== AUTH HELPERS ====================
@@ -356,10 +358,30 @@ def admin_order_detail(request, id):
 
     order = get_object_or_404(Order, id=id)
     items = OrderItem.objects.filter(order=order).select_related('product')
+    audit_logs = AuditLog.objects.filter(order=order).order_by('-created_at')[:20]
+    
+    # Lấy reviews cho đơn hàng
+    from .models import Review, OrderReview, ShipperReview, BranchReview
+    reviews = Review.objects.filter(order=order).order_by('-created_at') if order else []
+    
+    # Lấy reviews mở rộng cho đơn completed
+    order_review = None
+    shipper_review = None
+    branch_review = None
+    
+    if order and order.status == 'completed':
+        order_review = OrderReview.objects.filter(order=order).first()
+        shipper_review = ShipperReview.objects.filter(order=order).first()
+        branch_review = BranchReview.objects.filter(order=order).first()
 
     return render(request, 'cafe/admin_order_detail.html', {
         'order': order,
         'items': items,
+        'audit_logs': audit_logs,
+        'reviews': reviews,
+        'order_review': order_review,
+        'shipper_review': shipper_review,
+        'branch_review': branch_review,
     })
 
 #Tạo đơn hàng
@@ -932,15 +954,18 @@ def user_order_create(request):
 
                 total += price * quantity
 
-            # Áp dụng voucher nếu hợp lệ
+            # Áp dụng voucher nếu hợp lệ (backend validate đầy đủ bao gồm branch)
             if applied_voucher is not None:
-                is_valid, _ = applied_voucher.is_valid(total)  # type: ignore
+                is_valid, error_msg = applied_voucher.is_valid(total, branch.id if branch else None)
                 if is_valid:
                     discount_amount = applied_voucher.calc_discount(total)  # type: ignore
                     applied_voucher.used_count += 1  # type: ignore
                     applied_voucher.save()  # type: ignore
                     order.voucher = applied_voucher
                     order.discount_amount = discount_amount
+                else:
+                    messages.error(request, f"❌ Voucher không hợp lệ: {error_msg}")
+                    return redirect('cart')
 
             order.total_price = max(0, total + delivery_fee - discount_amount)
             order.save()
@@ -967,6 +992,18 @@ def user_order_create(request):
     from .services.email_service import send_order_confirmation_email
     send_order_confirmation_email(order)
 
+    # Nếu thanh toán Stripe → redirect sang Checkout, KHÔNG xóa cart để đề phòng
+    if payment_method == 'stripe':
+        from .services.stripe_service import create_checkout_session
+        session = create_checkout_session(order, request)
+        if session and session.url:
+            request.session["order_id"] = order.id
+            return redirect(session.url)
+        # Nếu tạo session thất bại → fallback về trang chi tiết
+        messages.warning(request, "⚠️ Không thể tạo phiên thanh toán Stripe. Vui lòng thử lại.")
+        return redirect('user_order_detail')
+
+    # Cash → giữ nguyên flow
     messages.success(request, "✅ Đặt hàng thành công")
     return redirect('user_order_detail')
 
@@ -1055,6 +1092,77 @@ def cart_remove(request, product_id):
     request.session['cart'] = cart
     request.session.modified = True
     return redirect('cart')
+
+# ==================== STRIPE PAYMENT ====================
+
+def stripe_success(request):
+    """
+    Stripe Checkout thành công → khách quay về.
+    is_paid sẽ được set =True bởi webhook bên server.
+    """
+    order_id = request.session.get('order_id')
+    if order_id:
+        order = Order.objects.filter(id=order_id).first()
+    else:
+        order_id_from_param = request.GET.get('order_id')
+        order = Order.objects.filter(id=order_id_from_param).first() if order_id_from_param else None
+
+    if not order:
+        messages.error(request, "❌ Không tìm thấy đơn hàng.")
+        return redirect('cart')
+
+    messages.success(request, "✅ Thanh toán thành công! Đơn hàng của bạn đang được xử lý.")
+    return redirect('user_order_detail')
+
+
+def stripe_cancel(request):
+    """Khách hủy Stripe Checkout."""
+    order_id = request.session.get('order_id')
+    if order_id:
+        order = Order.objects.filter(id=order_id).first()
+    else:
+        order_id_from_param = request.GET.get('order_id')
+        order = Order.objects.filter(id=order_id_from_param).first() if order_id_from_param else None
+
+    if order:
+        messages.warning(
+            request,
+            "⚠️ Bạn đã hủy thanh toán. Đơn hàng vẫn đang chờ xử lý. "
+            "Vui lòng thanh toán hoặc liên hệ quán để hoàn tất."
+        )
+
+    return redirect('user_order_detail')
+
+
+@csrf_exempt
+@require_POST
+def stripe_webhook(request):
+    """
+    Webhook endpoint — Stripe server-side gọi về khi có sự kiện thanh toán.
+    Xử lý: checkout.session.completed → tìm order → set is_paid=True.
+
+    Đăng ký webhook URL trong Stripe Dashboard:
+      https://your-domain/order/stripe-webhook/
+    """
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE', '')
+    webhook_secret = getattr(settings, 'STRIPE_WEBHOOK_SECRET', '')
+
+    from .services.stripe_service import construct_webhook_event, handle_checkout_completed
+
+    event = construct_webhook_event(payload, sig_header, webhook_secret)
+    if not event:
+        return HttpResponse('Webhook signature verification failed', status=400)
+
+    if event['type'] == 'checkout.session.completed':
+        handle_checkout_completed(event)
+    else:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info('Webhook: bỏ qua event type=%s', event['type'])
+
+    return HttpResponse('OK', status=200)
+
 
 #view xem đon hàng
 def user_order_detail(request):
@@ -1270,40 +1378,41 @@ def can_make_product(product, quantity_needed=1, branch=None):
     return True, ""
 
 def consume_materials_for_product(product, quantity_needed=1, branch=None):
-    recipes = ProductRecipe.objects.filter(product=product).select_related('material')
+    with transaction.atomic():
+        recipes = ProductRecipe.objects.filter(product=product).select_related('material')
 
-    for recipe in recipes:
-        required = recipe.quantity_required * quantity_needed
-        material = RawMaterial.objects.select_for_update().get(id=recipe.material.id)
+        for recipe in recipes:
+            required = recipe.quantity_required * quantity_needed
+            material = RawMaterial.objects.select_for_update().get(id=recipe.material.id)
 
-        branch_stock = None
-        if branch and material.branch_stocks.exists():
-            branch_stock = BranchMaterialStock.objects.select_for_update().filter(
+            branch_stock = None
+            if branch and material.branch_stocks.exists():
+                branch_stock = BranchMaterialStock.objects.select_for_update().filter(
+                    material=material,
+                    branch=branch,
+                ).first()
+                if not branch_stock or branch_stock.quantity < required:
+                    raise ValueError(f"Không đủ nguyên liệu tại chi nhánh {branch.name}: {material.name}")
+
+                branch_stock.quantity -= required
+                branch_stock.save(update_fields=['quantity', 'updated_at'])
+                sync_raw_material_total(material)
+            else:
+                if material.quantity < required:
+                    raise ValueError(f"Không đủ nguyên liệu: {material.name}")
+
+                material.quantity -= required
+                material.save()
+
+            StockLog.objects.create(
+                stock_type='material',
+                action='make',
+                product=product,
                 material=material,
                 branch=branch,
-            ).first()
-            if not branch_stock or branch_stock.quantity < required:
-                raise ValueError(f"Không đủ nguyên liệu tại chi nhánh {branch.name}: {material.name}")
-
-            branch_stock.quantity -= required
-            branch_stock.save(update_fields=['quantity', 'updated_at'])
-            sync_raw_material_total(material)
-        else:
-            if material.quantity < required:
-                raise ValueError(f"Không đủ nguyên liệu: {material.name}")
-
-            material.quantity -= required
-            material.save()
-
-        StockLog.objects.create(
-            stock_type='material',
-            action='make',
-            product=product,
-            material=material,
-            branch=branch,
-            quantity=-required,
-            note=f'Trừ nguyên liệu để pha {quantity_needed} {product.name}'
-        )
+                quantity=-required,
+                note=f'Trừ nguyên liệu để pha {quantity_needed} {product.name}'
+            )
 
 def process_product_order(product, quantity, branch=None):
     inventory, _ = Inventory.objects.select_for_update().get_or_create(
@@ -1371,6 +1480,22 @@ def material_list(request):
     for material in materials:
         material.display_quantity = get_material_quantity(material, selected_branch)
         material.display_min_quantity = get_material_min_quantity(material, selected_branch)
+        # Tính % bar trước để template không phải xử lý logic (tránh CSS false positive)
+        min_qty = material.display_min_quantity
+        cur_qty = material.display_quantity
+        if min_qty > 0:
+            if cur_qty <= 0:
+                material.bar_percent = 0
+                material.bar_color = 'danger'
+            elif cur_qty < min_qty:
+                material.bar_percent = min(int(cur_qty / min_qty * 100), 100)
+                material.bar_color = 'warning'
+            else:
+                material.bar_percent = 100
+                material.bar_color = 'ok'
+        else:
+            material.bar_percent = 0
+            material.bar_color = 'ok'
 
     return render(request, 'cafe/material_list.html', {
         'materials': materials,
@@ -1565,18 +1690,20 @@ def inventory_make(request, product_id):
             messages.error(request, f"❌ {product.name}: {error}")
             return redirect('inventory_list')
 
-        consume_materials_for_product(product, qty, branch=branch)
-        inventory.quantity += qty
-        inventory.save()
+        with transaction.atomic():
+            consume_materials_for_product(product, qty, branch=branch)
+            inventory = Inventory.objects.select_for_update().get(id=inventory.id)
+            inventory.quantity += qty
+            inventory.save()
 
-        StockLog.objects.create(
-            stock_type='finished',
-            action='make',
-            product=product,
-            branch=branch,
-            quantity=qty,
-            note=f'Pha chế thêm {qty} {product.name} từ nguyên liệu chi nhánh {branch.name}'
-        )
+            StockLog.objects.create(
+                stock_type='finished',
+                action='make',
+                product=product,
+                branch=branch,
+                quantity=qty,
+                note=f'Pha chế thêm {qty} {product.name} từ nguyên liệu chi nhánh {branch.name}'
+            )
 
         messages.success(request, f"✅ Đã pha chế thêm {qty} {product.name}")
         return redirect('inventory_list')
@@ -1606,6 +1733,24 @@ def restore_order_inventory(order):
             note=f'Hoàn kho do admin hủy đơn #{order.id}'
         )
 
+# ==================== AUDIT LOG HELPER ====================
+
+def _create_audit_log(action, order, actor, role, details):
+    """Tạo bản ghi audit log. Fail-safe — không làm crash nghiệp vụ."""
+    try:
+        AuditLog.objects.create(
+            action=action,
+            order=order,
+            actor=actor or 'system',
+            role=role or 'system',
+            details=details,
+        )
+    except Exception as e:
+        print(f"[AUDIT_LOG_ERROR] {e}")
+
+
+# ==================== ORDER STATUS ====================
+
 def order_update_status(request, order_id, status):
     if 'admin_id' not in request.session:
         return redirect('login')
@@ -1623,9 +1768,14 @@ def order_update_status(request, order_id, status):
         'cancelled': [],
     }
 
+    # Kiểm tra transition hợp lệ
     if status not in allowed_transitions.get(order.status, []):
-        messages.error(request, f"❌ Không thể chuyển từ '{order.get_status_display()}' sang '{status}'")
-        return redirect('order_list')
+        # Cho phép takeaway/dine_in: ready_for_delivery → completed (khách đã nhận hàng)
+        if order.status == 'ready_for_delivery' and status == 'completed' and order.order_type in ('takeaway', 'dine_in'):
+            pass  # hợp lệ, continue
+        else:
+            messages.error(request, f"❌ Không thể chuyển từ '{order.get_status_display()}' sang '{status}'")
+            return redirect('order_list')
         
     old_status = order.status
 
@@ -1662,23 +1812,26 @@ def order_update_status(request, order_id, status):
             profile.points += int(order.total_price * 0.05)  # 5% tích điểm
             profile.update_rank()
             
-    # Gửi email cập nhật trạng thái đơn hàng
+    # Gửi email cập nhật trạng thái đơn hàng + Audit log
     if old_status != status:
         from .services.email_service import send_order_status_update_email
         send_order_status_update_email(order, old_status=old_status)
+        actor = request.session.get('user_name', 'admin')
+        _create_audit_log(
+            action='ORDER_STATUS_CHANGED',
+            order=order,
+            actor=actor,
+            role='admin',
+            details=f"Admin đổi trạng thái từ '{order.get_status_display()}' → '{dict(Order.STATUS_CHOICES).get(status, status)}'",
+        )
         
     messages.success(request, "✅ Cập nhật trạng thái thành công")
     return redirect('order_list')
 
 def order_mark_paid(request, order_id):
-    if 'admin_id' not in request.session:
-        return redirect('login')
-    order = get_object_or_404(Order, id=order_id)
-    if not order.is_paid:
-        order.is_paid = True
-        order.save()
-        messages.success(request, f"✅ Đã xác nhận khách chuyển khoản cho Đơn #{order.id}")
-    return redirect('admin_order_detail', id=order.id)
+    # [6A] Bank transfer disabled — kept for future Stripe integration
+    messages.info(request, "Chức năng thanh toán chuyển khoản hiện đang tắt.")
+    return redirect('admin_order_detail', id=order_id)
 
 def stocklog_list(request):
     if 'admin_id' not in request.session:
@@ -1744,6 +1897,14 @@ def cancel_order(request, order_id):
 
         order.status = 'cancelled'
         order.save()
+
+        _create_audit_log(
+            action='ORDER_CANCELLED',
+        order=order,
+        actor=request.session.get('user_name', 'customer'),
+        role='customer',
+        details='Khách hàng tự hủy đơn hàng',
+    )
 
     messages.success(request, "✅ Đã hủy đơn hàng")
     return redirect('user_order_detail')
@@ -2196,30 +2357,55 @@ def revenue_report(request):
         revenues.append(row['revenue'] or 0)
         order_counts.append(row['orders'])
 
-    # Top 5 sản phẩm bán chạy
+    # Top 5 sản phẩm bán chạy — THEO SỐ LƯỢNG
     top_products = (
         OrderItem.objects
         .filter(order__status='completed', order__created_at__date__gte=date_from, order__created_at__date__lte=date_to)
         .values('product__name')
-        .annotate(total_qty=Sum('quantity'), total_revenue=Sum('price'))
+        .annotate(total_qty=Sum('quantity'), item_revenue=Sum(models.F('price') * models.F('quantity')))
         .order_by('-total_qty')[:5]
     )
 
-    # Thống kê theo loại đơn
+    # Top 5 sản phẩm bán chạy — THEO DOANH THU
+    top_products_by_revenue = (
+        OrderItem.objects
+        .filter(order__status='completed', order__created_at__date__gte=date_from, order__created_at__date__lte=date_to)
+        .values('product__name')
+        .annotate(total_qty=Sum('quantity'), item_revenue=Sum(models.F('price') * models.F('quantity')))
+        .order_by('-item_revenue')[:5]
+    )
+
+    # Thống kê theo loại đơn — tách gross item revenue vs net revenue
     order_type_stats = (
         Order.objects
         .filter(status='completed', created_at__date__gte=date_from, created_at__date__lte=date_to)
         .values('order_type')
-        .annotate(count=Count('id'), revenue=Sum('total_price'))
+        .annotate(
+            count=Count('id'),
+            net_revenue=Sum('total_price'),
+            gross_item_revenue=Sum(models.F('total_price') - models.F('delivery_fee') + models.F('discount_amount')),
+        )
     )
     order_type_map = {'dine_in': 'Tại quán', 'takeaway': 'Mang đi', 'delivery': 'Giao hàng'}
     type_labels = [order_type_map.get(r['order_type'], r['order_type']) for r in order_type_stats]
     type_counts = [r['count'] for r in order_type_stats]
-    type_revenues = [r['revenue'] or 0 for r in order_type_stats]
+    type_revenues = [r['net_revenue'] or 0 for r in order_type_stats]
 
-    # Tổng quan
+    # Tổng quan — tách 4 chỉ số
+    completed_orders = Order.objects.filter(status='completed', created_at__date__gte=date_from, created_at__date__lte=date_to)
+    # net_order_revenue = SUM(Order.total_price) — tổng thực thu từ đơn
     total_revenue = sum(revenues)
     total_orders = sum(order_counts)
+    # gross_item_revenue = SUM(OrderItem.price * quantity) — tổng tiền món chưa trừ voucher
+    gross_item_revenue = (
+        OrderItem.objects
+        .filter(order__status='completed',
+                order__created_at__date__gte=date_from,
+                order__created_at__date__lte=date_to)
+        .aggregate(g=Sum(models.F('price') * models.F('quantity')))['g']
+    ) or 0
+    discount_total = completed_orders.aggregate(d=Sum('discount_amount'))['d'] or 0
+    delivery_fee_total = completed_orders.aggregate(f=Sum('delivery_fee'))['f'] or 0
     avg_daily = round(total_revenue / max(len(labels), 1))
 
     return render(request, 'cafe/revenue_report.html', {
@@ -2229,11 +2415,15 @@ def revenue_report(request):
         'revenues': revenues,
         'order_counts': order_counts,
         'top_products': top_products,
+        'top_products_by_revenue': top_products_by_revenue,
         'type_labels': type_labels,
         'type_counts': type_counts,
         'type_revenues': type_revenues,
         'total_revenue': total_revenue,
         'total_orders': total_orders,
+        'gross_item_revenue': gross_item_revenue,
+        'discount_total': discount_total,
+        'delivery_fee_total': delivery_fee_total,
         'avg_daily': avg_daily,
     })
 
@@ -2559,13 +2749,148 @@ def submit_review(request, order_id, product_id):
     return render(request, 'cafe/submit_review.html', {'order': order, 'product': product})
 
 def admin_reviews(request):
-    """Admin xem tất cả đánh giá"""
+    """Admin xem tất cả đánh giá (review món)"""
     if 'admin_id' not in request.session:
         return redirect('login')
         
     from .models import Review
     reviews = Review.objects.all().select_related('order', 'order__branch').order_by('-created_at')
     return render(request, 'cafe/admin_reviews.html', {'reviews': reviews})
+
+
+# ==================== REVIEW MỞ RỘNG ====================
+
+@require_POST
+def submit_order_review(request, order_id):
+    """Customer đánh giá tổng thể đơn hàng"""
+    from .models import OrderReview
+    
+    # KIỂM TRA OWNERSHIP - Chỉ chủ đơn mới được review
+    session_order_id = request.session.get("order_id")
+    if str(session_order_id) != str(order_id):
+        messages.error(request, '❌ Bạn không thể đánh giá đơn này')
+        return redirect('user_order_detail')
+    
+    order = get_object_or_404(Order, id=order_id)
+    
+    # Kiểm tra đơn completed
+    if order.status != 'completed':
+        messages.error(request, '❌ Chỉ đơn hàng hoàn tất mới được đánh giá')
+        return redirect('user_order_detail')
+    
+    # Kiểm tra đã review chưa
+    if OrderReview.objects.filter(order=order).exists():
+        messages.warning(request, '⚠ Bạn đã đánh giá đơn hàng này rồi.')
+        return redirect('user_order_detail')
+    
+    rating = int(request.POST.get('rating', 5))
+    comment = request.POST.get('comment', '')
+    
+    OrderReview.objects.create(
+        order=order,
+        rating=rating,
+        comment=comment
+    )
+    
+    # Audit log
+    _create_audit_log('ORDER_REVIEW_CREATED', order, order.customer_name or 'Khách', 'customer',
+                      f'Đánh giá {rating} sao: {comment[:50]}')
+    
+    messages.success(request, '🌟 Cảm ơn bạn đã gửi đánh giá đơn hàng!')
+    return redirect('user_order_detail')
+
+
+@require_POST
+def submit_shipper_review(request, order_id):
+    """Customer đánh giá shipper giao hàng"""
+    from .models import ShipperReview
+    
+    # KIỂM TRA OWNERSHIP - Chỉ chủ đơn mới được review
+    session_order_id = request.session.get("order_id")
+    if str(session_order_id) != str(order_id):
+        messages.error(request, '❌ Bạn không thể đánh giá đơn này')
+        return redirect('user_order_detail')
+    
+    order = get_object_or_404(Order, id=order_id)
+    
+    # Kiểm tra đơn completed
+    if order.status != 'completed':
+        messages.error(request, '❌ Chỉ đơn hàng hoàn tất mới được đánh giá')
+        return redirect('user_order_detail')
+    
+    # Kiểm tra đơn delivery có shipper
+    if order.order_type != 'delivery' or not order.assigned_shipper:
+        messages.error(request, '❌ Đơn hàng này không có shipper để đánh giá')
+        return redirect('user_order_detail')
+    
+    # Kiểm tra đã review chưa
+    if ShipperReview.objects.filter(order=order).exists():
+        messages.warning(request, '⚠ Bạn đã đánh giá shipper cho đơn này rồi.')
+        return redirect('user_order_detail')
+    
+    rating = int(request.POST.get('rating', 5))
+    comment = request.POST.get('comment', '')
+    
+    ShipperReview.objects.create(
+        order=order,
+        shipper=order.assigned_shipper,
+        rating=rating,
+        comment=comment
+    )
+    
+    # Audit log
+    _create_audit_log('SHIPPER_REVIEW_CREATED', order, order.customer_name or 'Khách', 'customer',
+                      f'Đánh giá shipper {order.assigned_shipper.username} {rating} sao: {comment[:50]}')
+    
+    messages.success(request, f'🌟 Cảm ơn bạn đã đánh giá shipper {order.assigned_shipper.username}!')
+    return redirect('user_order_detail')
+
+
+@require_POST
+def submit_branch_review(request, order_id):
+    """Customer đánh giá chi nhánh xử lý đơn"""
+    from .models import BranchReview
+    
+    # KIỂM TRA OWNERSHIP - Chỉ chủ đơn mới được review
+    session_order_id = request.session.get("order_id")
+    if str(session_order_id) != str(order_id):
+        messages.error(request, '❌ Bạn không thể đánh giá đơn này')
+        return redirect('user_order_detail')
+    
+    order = get_object_or_404(Order, id=order_id)
+    
+    # Kiểm tra đơn completed
+    if order.status != 'completed':
+        messages.error(request, '❌ Chỉ đơn hàng hoàn tất mới được đánh giá')
+        return redirect('user_order_detail')
+    
+    # Kiểm tra đơn có branch
+    if not order.branch:
+        messages.error(request, '❌ Đơn hàng này không có chi nhánh để đánh giá')
+        return redirect('user_order_detail')
+    
+    # Kiểm tra đã review chưa
+    if BranchReview.objects.filter(order=order).exists():
+        messages.warning(request, '⚠ Bạn đã đánh giá chi nhánh cho đơn này rồi.')
+        return redirect('user_order_detail')
+    
+    rating = int(request.POST.get('rating', 5))
+    comment = request.POST.get('comment', '')
+    
+    BranchReview.objects.create(
+        order=order,
+        branch=order.branch,
+        rating=rating,
+        comment=comment
+    )
+    
+    # Audit log
+    _create_audit_log('BRANCH_REVIEW_CREATED', order, order.customer_name or 'Khách', 'customer',
+                      f'Đánh giá chi nhánh {order.branch.name} {rating} sao: {comment[:50]}')
+    
+    messages.success(request, f'🌟 Cảm ơn bạn đã đánh giá chi nhánh {order.branch.name}!')
+    return redirect('user_order_detail')
+
 
 # --- 4. GIS NÂNG CAO (HEATMAP ĐƠN HÀNG) ---
 def api_orders_heatmap(request):
@@ -2765,9 +3090,17 @@ def customer_history(request):
     phone = request.GET.get('phone', '').strip()
     orders = []
     loyalty = None
+    completed_orders_count = 0
     if phone:
-        orders = Order.objects.prefetch_related('orderitem_set__product').filter(customer_phone=phone).order_by('-created_at')
-        loyalty = None
+        # Query đơn hàng của khách (voucher là FK nên dùng select_related)
+        orders = Order.objects.select_related('voucher').prefetch_related('orderitem_set__product').filter(customer_phone=phone).order_by('-created_at')
+        
+        # Query CustomerProfile cho loyalty (dùng filter().first() an toàn hơn)
+        from .models import CustomerProfile
+        loyalty = CustomerProfile.objects.filter(phone=phone).first()
+        
+        # Đếm số đơn hoàn tất
+        completed_orders_count = orders.filter(status='completed').count()
         
         from .models import Review
         user_reviews = Review.objects.filter(customer_phone=phone)
@@ -2786,7 +3119,10 @@ def customer_history(request):
                     setattr(item, 'has_reviewed', False)
 
     return render(request, 'cafe/customer_history.html', {
-        'orders': orders, 'loyalty': loyalty, 'phone': phone
+        'orders': orders, 
+        'loyalty': loyalty, 
+        'phone': phone,
+        'completed_orders_count': completed_orders_count if phone else 0,
     })
 
 
@@ -3052,21 +3388,114 @@ def admin_assign_shipper(request, order_id):
         order.status = 'confirmed'
 
     order.save()
+    _create_audit_log(
+        action='SHIPPER_ASSIGNED',
+        order=order,
+        actor=request.session.get('user_name', 'admin'),
+        role='admin',
+        details=f'Admin gán shipper {shipper.username} cho đơn giao hàng',
+    )
     messages.success(request, f'✅ Đã gán Đơn #{order.id} cho shipper {shipper.username}')
     return redirect('admin_deliveries')
+
+def _build_shipper_list_for_order(order):
+    """Build marked shipper list for a specific order.
+    Returns list of dicts with shipper data and branch matching info.
+    """
+    order_branch_id = order.branch_id
+
+    shippers_qs = (
+        User.objects
+        .filter(role='shipper')
+        .select_related('shipper_profile__assigned_branch')
+        .order_by('username')
+    )
+
+    same_branch = []
+    other_branch = []
+
+    for s in shippers_qs:
+        try:
+            profile = s.shipper_profile
+            active = profile.get_active_orders_count()
+            can_accept = profile.can_accept_more_orders()
+            is_avail = profile.is_available
+            assigned_branch_id = profile.assigned_branch_id
+            assigned_branch_name = profile.assigned_branch.name if profile.assigned_branch else None
+            phone = profile.phone
+            max_orders = profile.max_active_orders
+        except Exception:
+            active = 0
+            can_accept = True
+            is_avail = True
+            assigned_branch_id = None
+            assigned_branch_name = None
+            phone = ''
+            max_orders = 5
+
+        is_same_branch = (assigned_branch_id == order_branch_id) if order_branch_id else False
+
+        item = {
+            'id': s.id,
+            'username': s.username,
+            'phone': phone,
+            'assigned_branch_id': assigned_branch_id,
+            'assigned_branch_name': assigned_branch_name,
+            'active_orders': active,
+            'max_orders': max_orders,
+            'can_accept': can_accept,
+            'is_available': is_avail,
+            'is_same_branch': is_same_branch,
+            'is_good_match': is_same_branch and is_avail and can_accept,
+        }
+
+        if is_same_branch:
+            same_branch.append(item)
+        else:
+            other_branch.append(item)
+
+    # Xác định shipper tốt nhất: cùng chi nhánh + đang rảnh + còn slot
+    best = None
+    for s in same_branch:
+        if s['is_available'] and s['can_accept']:
+            best = s
+            break
+    if not best:
+        for s in same_branch:
+            if s['is_available']:
+                best = s
+                break
+    if not best:
+        for s in same_branch:
+            best = s
+            break
+
+    # Ghép same + other, best luôn lên đầu
+    ordered = []
+    if best:
+        ordered.append(best)
+    for s in same_branch:
+        if s not in ordered:
+            ordered.append(s)
+    for s in other_branch:
+        if s not in ordered:
+            ordered.append(s)
+
+    return ordered
+
 
 @role_required('admin')
 def admin_deliveries(request):
     """Trang admin quản lý tổng quan các đơn giao hàng"""
     status_filter = request.GET.get('status', 'all')
-    
+
     orders = (
         Order.objects
         .filter(order_type='delivery')
         .select_related('branch', 'assigned_shipper')
         .order_by('-created_at')
     )
-    
+
     if status_filter == 'waiting':
         orders = orders.filter(delivery_status='waiting')
     elif status_filter == 'assigned':
@@ -3080,10 +3509,24 @@ def admin_deliveries(request):
     elif status_filter == 'failed':
         orders = orders.filter(delivery_status='failed')
 
+    # Build shipper list per order (đánh dấu đúng/sai chi nhánh + gợi ý tốt nhất)
+    orders_with_shippers = []
+    for order in orders:
+        shipper_list = _build_shipper_list_for_order(order)
+        # Tìm shipper tốt nhất để hiển thị gợi ý
+        best_shipper = next((s for s in shipper_list if s['is_good_match']), None)
+        orders_with_shippers.append({
+            'order': order,
+            'shipper_list': shipper_list,
+            'best_shipper': best_shipper,
+        })
+
+    branches = CafeBranch.objects.filter(is_active=True).order_by('name')
+
     return render(request, 'cafe/admin_deliveries.html', {
-        'orders': orders,
+        'orders_with_shippers': orders_with_shippers,
         'current_status': status_filter,
-        'shippers': User.objects.filter(role='shipper').order_by('username'),
+        'branches': branches,
     })
 
 
@@ -3166,19 +3609,30 @@ def shipper_accept_delivery(request, order_id):
     order.failed_at = None
     order.failure_reason = ''
     order.save()
+    _create_audit_log(
+        action='SHIPPER_ACCEPTED',
+        order=order,
+        actor=current_user.username if current_user else 'shipper',
+        role='shipper',
+        details='Shipper nhận đơn giao hàng',
+    )
     return _shipper_action_success(request, f'✅ Bạn đã nhận Đơn #{order.id}')
 
 
 @role_required('shipper')
 @require_POST
 def shipper_reject_delivery(request, order_id):
+    """Shipper từ chối nhận/giao đơn → quay về ready_for_delivery, admin gán lại được."""
     current_user = _get_current_app_user(request)
     order = get_object_or_404(Order, id=order_id, order_type='delivery')
 
     if not current_user or order.assigned_shipper_id != current_user.id:
         return _shipper_action_error(request, '❌ Bạn không được thao tác trên đơn này', status=403)
     if order.delivery_status not in ['assigned', 'accepted']:
-        return _shipper_action_error(request, '❌ Chỉ đơn chờ nhận hoặc đã nhận mới có thể từ chối')
+        return _shipper_action_error(request, '❌ Chỉ đơn đã gán hoặc đã nhận mới có thể từ chối')
+    # Chỉ cho từ chối khi CHƯA bắt đầu giao (delivery_status='shipping' = đã lên đường rồi)
+    if order.delivery_status == 'shipping':
+        return _shipper_action_error(request, '❌ Đơn đã bắt đầu giao, không thể từ chối. Vui lòng báo giao thất bại.')
 
     reason = request.POST.get('reason', '').strip() or 'Shipper từ chối nhận đơn'
     order.delivery_status = 'waiting'
@@ -3186,9 +3640,16 @@ def shipper_reject_delivery(request, order_id):
     order.failure_reason = reason
     order.accepted_at = None
     order.started_delivery_at = None
-    if order.status == 'delivering':
-        order.status = 'confirmed'
+    order.assigned_shipper = None
+    order.status = 'ready_for_delivery'
     order.save()
+    _create_audit_log(
+        action='SHIPPER_REJECTED',
+        order=order,
+        actor=current_user.username if current_user else 'shipper',
+        role='shipper',
+        details=f'Shipper từ chối giao. Lý do: {reason}',
+    )
     return _shipper_action_success(request, f'✅ Đã trả Đơn #{order.id} về trạng thái chờ gán')
 
 
@@ -3219,6 +3680,13 @@ def shipper_start_delivery(request, order_id):
     order.started_delivery_at = timezone.now()
     order.status = 'delivering'
     order.save()
+    _create_audit_log(
+        action='SHIPPER_STARTED',
+        order=order,
+        actor=current_user.username if current_user else 'shipper',
+        role='shipper',
+        details='Shipper bắt đầu giao đơn hàng',
+    )
     return _shipper_action_success(request, f'✅ Đã bắt đầu giao Đơn #{order.id}')
 
 
@@ -3256,12 +3724,20 @@ def shipper_complete_delivery(request, order_id):
         from .services.email_service import send_order_status_update_email
         send_order_status_update_email(order, old_status=old_status)
 
+        _create_audit_log(
+            action='SHIPPER_COMPLETED',
+        order=order,
+        actor=current_user.username if current_user else 'shipper',
+        role='shipper',
+        details='Shipper xác nhận giao thành công. Tổng tiền: {:,.0f}đ'.format(order.total_price),
+    )
     return _shipper_action_success(request, f'✅ Đã xác nhận giao thành công Đơn #{order.id}')
 
 
 @role_required('shipper')
 @require_POST
 def shipper_fail_delivery(request, order_id):
+    """Shipper báo giao thất bại → delivery_status='failed', admin reassign được."""
     current_user = _get_current_app_user(request)
     order = get_object_or_404(Order, id=order_id, order_type='delivery')
 
@@ -3269,10 +3745,9 @@ def shipper_fail_delivery(request, order_id):
         return _shipper_action_error(request, '❌ Bạn không được thao tác trên đơn này', status=403)
     if order.delivery_status not in ['accepted', 'shipping']:
         return _shipper_action_error(request, '❌ Chỉ đơn đã nhận hoặc đang giao mới có thể báo thất bại')
-    if order.delivery_status == 'accepted' and order.status not in ['confirmed', 'preparing']:
-        return _shipper_action_error(request, '❌ Trạng thái đơn hiện tại không cho phép báo thất bại ở bước này')
-    if order.delivery_status == 'shipping' and order.status != 'delivering':
-        return _shipper_action_error(request, '❌ Trạng thái đơn chính không khớp với luồng giao hàng')
+    # Chỉ cho fail khi CHƯA hoàn thành giao (tức là status chưa phải completed)
+    if order.status == 'completed':
+        return _shipper_action_error(request, '❌ Đơn đã hoàn tất, không thể báo thất bại')
 
     reason = request.POST.get('reason', '').strip()
     if not reason:
@@ -3281,9 +3756,18 @@ def shipper_fail_delivery(request, order_id):
     order.delivery_status = 'failed'
     order.failed_at = timezone.now()
     order.failure_reason = reason
-    if order.status == 'delivering':
-        order.status = 'confirmed'
+    order.assigned_shipper = None
+    order.accepted_at = None
+    order.started_delivery_at = None
+    order.status = 'ready_for_delivery'
     order.save()
+    _create_audit_log(
+        action='SHIPPER_FAILED',
+        order=order,
+        actor=current_user.username if current_user else 'shipper',
+        role='shipper',
+        details=f'Shipper báo giao thất bại. Lý do: {reason}',
+    )
     return _shipper_action_success(request, f'✅ Đã ghi nhận giao thất bại cho Đơn #{order.id}')
 
 
@@ -3424,12 +3908,22 @@ def _get_revenue_data(request):
         revenues.append(row['revenue'] or 0)
         order_counts.append(row['orders'])
 
+    # Top 5 sản phẩm — THEO SỐ LƯỢNG
     top_products = list(
         OrderItem.objects
         .filter(order__status='completed', order__created_at__date__gte=date_from, order__created_at__date__lte=date_to)
         .values('product__name')
-        .annotate(total_qty=Sum('quantity'), total_revenue=Sum('price'))
+        .annotate(total_qty=Sum('quantity'), item_revenue=Sum(models.F('price') * models.F('quantity')))
         .order_by('-total_qty')[:5]
+    )
+
+    # Top 5 sản phẩm — THEO DOANH THU
+    top_products_by_revenue = list(
+        OrderItem.objects
+        .filter(order__status='completed', order__created_at__date__gte=date_from, order__created_at__date__lte=date_to)
+        .values('product__name')
+        .annotate(total_qty=Sum('quantity'), item_revenue=Sum(models.F('price') * models.F('quantity')))
+        .order_by('-item_revenue')[:5]
     )
 
     order_type_stats = (
@@ -3438,13 +3932,26 @@ def _get_revenue_data(request):
         .values('order_type')
         .annotate(count=Count('id'), revenue=Sum('total_price'))
     )
-    order_type_map = {'dine_in': 'Tai quan', 'takeaway': 'Mang di', 'delivery': 'Giao hang'}
+    order_type_map = {'dine_in': 'Tại quán', 'takeaway': 'Mang đi', 'delivery': 'Giao hàng'}
     type_labels = [order_type_map.get(r['order_type'], r['order_type']) for r in order_type_stats]
     type_counts = [r['count'] for r in order_type_stats]
     type_revenues = [r['revenue'] or 0 for r in order_type_stats]
 
+    # Tổng quan — tách 4 chỉ số
+    completed_orders = Order.objects.filter(status='completed', created_at__date__gte=date_from, created_at__date__lte=date_to)
+    # net_order_revenue = SUM(Order.total_price) — tổng thực thu từ đơn
     total_revenue = sum(revenues)
     total_orders = sum(order_counts)
+    # gross_item_revenue = SUM(OrderItem.price * quantity) — tổng tiền món chưa trừ voucher
+    gross_item_revenue = (
+        OrderItem.objects
+        .filter(order__status='completed',
+                order__created_at__date__gte=date_from,
+                order__created_at__date__lte=date_to)
+        .aggregate(g=Sum(models.F('price') * models.F('quantity')))['g']
+    ) or 0
+    discount_total = completed_orders.aggregate(d=Sum('discount_amount'))['d'] or 0
+    delivery_fee_total = completed_orders.aggregate(f=Sum('delivery_fee'))['f'] or 0
     avg_daily = round(total_revenue / max(len(labels), 1))
 
     return {
@@ -3454,11 +3961,15 @@ def _get_revenue_data(request):
         'revenues': revenues,
         'order_counts': order_counts,
         'top_products': top_products,
+        'top_products_by_revenue': top_products_by_revenue,
         'type_labels': type_labels,
         'type_counts': type_counts,
         'type_revenues': type_revenues,
         'total_revenue': total_revenue,
         'total_orders': total_orders,
+        'gross_item_revenue': gross_item_revenue,
+        'discount_total': discount_total,
+        'delivery_fee_total': delivery_fee_total,
         'avg_daily': avg_daily,
     }
 
@@ -3558,7 +4069,7 @@ def admin_shipper_add(request):
             )
 
             from .models import ShipperProfile
-            ShipperProfile.objects.create(
+            profile = ShipperProfile.objects.create(
                 user=user,
                 phone=phone,
                 assigned_branch=branch,
@@ -3569,8 +4080,18 @@ def admin_shipper_add(request):
         messages.success(request, f'✅ Đã tạo tài khoản shipper: {username}')
         return redirect('admin_shipper_list')
 
+    # Tạo profile mặc định để template không bị lỗi
+    from .models import ShipperProfile
+    default_profile = type('obj', (object,), {
+        'phone': '',
+        'assigned_branch_id': None,
+        'is_available': True,
+        'max_active_orders': 5,
+    })()
+
     return render(request, 'cafe/admin_shipper_form.html', {
         'shipper': None,
+        'profile': default_profile,
         'branches': branches,
     })
 

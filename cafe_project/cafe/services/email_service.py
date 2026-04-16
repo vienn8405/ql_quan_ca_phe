@@ -45,7 +45,7 @@ ORDER_TYPE_MAP = {
 
 PAYMENT_MAP = {
     'cash': 'Tiền mặt',
-    'bank': 'Chuyển khoản',
+    'stripe': 'Stripe',
 }
 
 # Màu badge theo trạng thái

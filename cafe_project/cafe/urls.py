@@ -69,11 +69,15 @@ path('admin/recipes/delete/<int:id>/', views.recipe_delete, name='recipe_delete'
 path('admin/inventory/make/<int:product_id>/', views.inventory_make, name='inventory_make'),
 
 path('admin/orders/status/<int:order_id>/<str:status>/', views.order_update_status, name='order_update_status'),
-path('admin/orders/mark-paid/<int:order_id>/', views.order_mark_paid, name='order_mark_paid'),
 
 path('admin/stocklogs/', views.stocklog_list, name='stocklog_list'),
 
 path('order/cancel/<int:order_id>/', views.cancel_order, name='cancel_order'),
+
+    # ===== STRIPE PAYMENT =====
+    path('order/stripe-success/', views.stripe_success, name='stripe_success'),
+    path('order/stripe-cancel/', views.stripe_cancel, name='stripe_cancel'),
+    path('order/stripe-webhook/', views.stripe_webhook, name='stripe_webhook'),
 
     # ===== BÀN =====
     path('admin/tables/', views.table_list, name='table_list'),
@@ -106,6 +110,11 @@ path('order/cancel/<int:order_id>/', views.cancel_order, name='cancel_order'),
     path('admin/reservations/status/<int:id>/<str:status>/', views.admin_reservation_status, name='admin_reservation_status'),
     path('order/review/<int:order_id>/<int:product_id>/', views.submit_review, name='submit_review'),
     path('admin/reviews/', views.admin_reviews, name='admin_reviews'),
+    
+    # ===== REVIEW MỞ RỘNG =====
+    path('order/review/order/<int:order_id>/', views.submit_order_review, name='submit_order_review'),
+    path('order/review/shipper/<int:order_id>/', views.submit_shipper_review, name='submit_shipper_review'),
+    path('order/review/branch/<int:order_id>/', views.submit_branch_review, name='submit_branch_review'),
     path('api/orders-heatmap/', views.api_orders_heatmap, name='api_orders_heatmap'),
     path('api/tables/available/', views.api_available_tables, name='api_available_tables'),
     path('reservation/status/', views.reservation_status, name='reservation_status'),

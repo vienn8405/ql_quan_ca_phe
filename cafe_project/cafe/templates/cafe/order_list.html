@@ -154,9 +154,11 @@
 
                         {% elif o.status == 'preparing' %}
                             {% if o.order_type == 'delivery' %}
+                                <a href="{% url 'order_update_status' o.id 'ready_for_delivery' %}" class="action-btn success" onclick="return confirm('Xác nhận pha chế xong và chuyển sang trạng thái Chờ lấy hàng?')">🍵 Pha chế xong</a>
                                 <a href="{% url 'admin_deliveries' %}" class="action-btn light">Đi tới logistics</a>
                             {% else %}
-                                <a href="{% url 'order_update_status' o.id 'completed' %}" class="action-btn success">Hoàn tất</a>
+                                <a href="{% url 'order_update_status' o.id 'ready_for_delivery' %}" class="action-btn success" onclick="return confirm('Xác nhận pha chế xong?')">🍵 Pha chế xong</a>
+                                <a href="{% url 'order_update_status' o.id 'completed' %}" class="action-btn success">✅ Hoàn tất</a>
                             {% endif %}
                             <a href="{% url 'order_update_status' o.id 'cancelled' %}" class="action-btn danger">Hủy đơn</a>
 
@@ -168,12 +170,7 @@
                             {% endif %}
 
                         {% elif o.status == 'delivering' %}
-                            {% if o.order_type == 'delivery' %}
-                                <a href="{% url 'admin_deliveries' %}" class="action-btn light">🚚 Theo dõi logistics</a>
-                            {% else %}
-                                <a href="{% url 'order_update_status' o.id 'completed' %}" class="action-btn success">Giao xong</a>
-                                <a href="{% url 'order_update_status' o.id 'cancelled' %}" class="action-btn danger">Giao thất bại</a>
-                            {% endif %}
+                            <a href="{% url 'admin_deliveries' %}" class="action-btn light">🚚 Theo dõi logistics</a>
 
                         {% else %}
                             <span class="muted-text">Không thể cập nhật</span>

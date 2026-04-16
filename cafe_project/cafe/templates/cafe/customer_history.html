@@ -14,19 +14,73 @@
     </form>
 
     {% if phone %}
+        {# ========== THÔNG TIN LOYALTY / THÀNH VIÊN ========== #}
         {% if loyalty %}
         <div class="loyalty-card">
-            <div>
-                <h3>Thành viên: {{ loyalty.name }}</h3>
-                <div class="loyalty-tier">Hạng: <strong>{{ loyalty.get_tier_display }}</strong></div>
+            <div class="loyalty-info">
+                <h3>
+                    {% if loyalty.name %}
+                        {{ loyalty.name }}
+                    {% else %}
+                        Khách hàng
+                    {% endif %}
+                </h3>
+                
+                {# Hạng thành viên với màu sắc #}
+                <div class="loyalty-tier">
+                    Hạng: 
+                    <strong>
+                        {% if loyalty.rank == 'Vàng' %}
+                            <span style="color: #ffd700;">⭐ Vàng</span>
+                            <span style="font-size:12px; color: #888;">(Giảm 10% mỗi đơn)</span>
+                        {% elif loyalty.rank == 'Bạc' %}
+                            <span style="color: #c0c0c0;">⭐ Bạc</span>
+                            <span style="font-size:12px; color: #888;">(Giảm 5% mỗi đơn)</span>
+                        {% else %}
+                            <span style="color: #cd7f32;">⭐ Đồng</span>
+                            <span style="font-size:12px; color: #888;">(Tích điểm 5% mỗi đơn)</span>
+                        {% endif %}
+                    </strong>
+                </div>
+                
+                {# Thống kê tổng quan #}
+                <div class="loyalty-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Tổng chi tiêu:</span>
+                        <span class="stat-value">{{ loyalty.total_spent|vnd }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Đơn đã hoàn tất:</span>
+                        <span class="stat-value">{{ completed_orders_count }} đơn</span>
+                    </div>
+                </div>
             </div>
+            
             <div class="loyalty-points">
-                <div class="loyalty-points-value">{{ loyalty.points }} đ</div>
+                <div class="loyalty-points-value">{{ loyalty.points|default:0 }}</div>
                 <div class="loyalty-points-label">Điểm tích lũy</div>
+                {% if loyalty.rank == 'Vàng' %}
+                    <div style="font-size:11px; color: #ffd700; margin-top:4px;">✦ Ưu tiên xử lý</div>
+                {% endif %}
             </div>
         </div>
+        {% else %}
+            {# Khách chưa có profile loyalty - vẫn hiển thị thông tin hữu ích #}
+            <div class="loyalty-card" style="background: #f8f9fa; border: 1px dashed #ccc;">
+                <div class="loyalty-info">
+                    <h3 style="color: #666;">Chưa có tài khoản thành viên</h3>
+                    <p style="font-size:13px; color: #888;">
+                        Khách hàng này chưa hoàn tất đơn hàng nào hoặc chưa đăng ký thành viên.
+                    </p>
+                </div>
+                <div class="loyalty-points" style="background: #e9ecef;">
+                    <div class="loyalty-points-value" style="color: #aaa;">--</div>
+                    <div class="loyalty-points-label">Chưa có điểm</div>
+                </div>
+            </div>
         {% endif %}
 
+        {# ========== LỊCH SỬ ĐƠN HÀNG ========== #}
         <h4 class="history-section-title">📚 Đơn hàng gần đây:</h4>
         {% if not orders %}
             <div class="empty-state-box">
@@ -38,7 +92,18 @@
                 <div class="order-header">
                     <div>
                         <strong>Mã Đơn: #{{ order.id }}</strong>
-                        <div class="order-card-date">{{ order.created_at|date:"d/m/Y H:i" }} - {{ order.get_order_type_display }}</div>
+                        <div class="order-card-date">
+                            {{ order.created_at|date:"d/m/Y H:i" }} - {{ order.get_order_type_display }}
+                        </div>
+                        {# Hiển thị voucher đã dùng nếu có #}
+                        {% if order.voucher %}
+                            <div style="font-size:11px; color: #28a745; margin-top:2px;">
+                                🎟️ Đã dùng voucher: <strong>{{ order.voucher.code }}</strong>
+                                {% if order.discount_amount > 0 %}
+                                    (-{{ order.discount_amount|vnd }})
+                                {% endif %}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="text-right">
                         <span class="order-card-status">{{ order.get_status_display }}</span>
@@ -62,9 +127,37 @@
                         {% endfor %}
                     </ul>
                 </div>
+                
+                {# Ghi chú về điểm tích lũy cho đơn đã hoàn tất #}
+                {% if order.status == 'completed' and loyalty %}
+                    <div style="font-size:11px; color: #6c757d; margin-top:8px; padding-top:8px; border-top:1px dashed #dee2e6;">
+                        💰 Đơn này đã được cộng điểm loyalty (5% giá trị)
+                    </div>
+                {% endif %}
             </div>
             {% endfor %}
         {% endif %}
     {% endif %}
 </div>
+
+{# ========== CSS BỔ SUNG ========== #}
+<style>
+.loyalty-stats {
+    display: flex;
+    gap: 20px;
+    margin-top: 8px;
+}
+.stat-item {
+    display: flex;
+    gap: 6px;
+    font-size: 13px;
+}
+.stat-label {
+    color: #6c757d;
+}
+.stat-value {
+    color: #333;
+    font-weight: 600;
+}
+</style>
 {% endblock %}

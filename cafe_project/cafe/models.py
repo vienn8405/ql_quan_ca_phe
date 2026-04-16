@@ -101,7 +101,7 @@ class Product(models.Model):
 class Order(models.Model):
     PAYMENT_CHOICES = (
         ("cash", "Tiền mặt"),
-        ("bank", "Chuyển khoản"),
+        ("stripe", "Stripe"),
     )
 
     STATUS_CHOICES = (
@@ -147,6 +147,12 @@ class Order(models.Model):
         default="cash",
     )
     is_paid = models.BooleanField(default=False, verbose_name="Đã thanh toán")
+    stripe_checkout_session_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="Stripe Checkout Session ID"
+    )
 
     status = models.CharField(
         max_length=20,
@@ -484,7 +490,7 @@ class Reservation(models.Model):
     def __str__(self):
         return f"Đặt bàn: {self.customer_name} - {self.date} {self.time}"
 
-# 3. Đánh giá (Review) cho Đơn hàng
+# 3. Đánh giá (Review) cho Đơn hàng - REVIEW MÓN
 class Review(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews', null=True, blank=True)
     order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviews')
@@ -496,6 +502,44 @@ class Review(models.Model):
     
     def __str__(self):
         return f"Review cho Đơn #{self.order.id} - {self.rating} sao"
+
+
+# ==================== REVIEW MỞ RỘNG ====================
+# 3.1. Review Đơn Hàng - Customer đánh giá tổng thể đơn hàng
+class OrderReview(models.Model):
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='order_review')
+    rating = models.IntegerField(default=5)  # 1-5 sao
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Review Đơn #{self.order.id} - {self.rating} sao"
+
+
+# 3.2. Review Shipper - Customer đánh giá shipper giao hàng
+class ShipperReview(models.Model):
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='shipper_review')
+    shipper = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='shipper_reviews')
+    rating = models.IntegerField(default=5)  # 1-5 sao
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        shipper_name = self.shipper.username if self.shipper else 'N/A'
+        return f"Review Shipper {shipper_name} - {self.rating} sao"
+
+
+# 3.3. Review Chi Nhánh - Customer đánh giá chi nhánh xử lý đơn
+class BranchReview(models.Model):
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='branch_review')
+    branch = models.ForeignKey(CafeBranch, on_delete=models.SET_NULL, null=True, related_name='branch_reviews')
+    rating = models.IntegerField(default=5)  # 1-5 sao
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        branch_name = self.branch.name if self.branch else 'N/A'
+        return f"Review Chi Nhánh {branch_name} - {self.rating} sao"
 
 # Nhà cung cấp
 class Supplier(models.Model):
@@ -553,3 +597,24 @@ class ShiftAssignment(models.Model):
 
     class Meta:
         unique_together = ['shift', 'employee']
+
+
+# ==================== AUDIT LOG ====================
+
+class AuditLog(models.Model):
+    """Lịch sử thao tác quan trọng trên hệ thống."""
+    action = models.CharField(max_length=50)  # ORDER_STATUS_CHANGED, SHIPPER_ASSIGNED, ...
+    order = models.ForeignKey(
+        'Order', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='audit_logs'
+    )
+    actor = models.CharField(max_length=100)    # username người thực hiện
+    role = models.CharField(max_length=50)     # admin, shipper, system, customer
+    details = models.TextField(blank=True)      # ghi chú chi tiết
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f"[{self.action}] {self.actor} ({self.role}) - {self.created_at:%H:%M %d/%m/%Y}"
