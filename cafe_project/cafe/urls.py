@@ -11,6 +11,9 @@ path('menu/', views.user_menu, name='user_menu'),
 
 path('login/', views.login_view, name='login'),
 path('logout/', views.logout_view, name='logout'),
+path('register/', views.register_view, name='register'),
+path('forgot-password/', views.forgot_password_view, name='forgot_password'),
+path('reset-password/<str:token>/', views.reset_password_view, name='reset_password'),
 #admin
 #sản phẩm
 path('admin/products/', views.product_list, name='product_list'),
@@ -124,6 +127,8 @@ path('order/cancel/<int:order_id>/', views.cancel_order, name='cancel_order'),
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('admin/suppliers/', views.supplier_list, name='supplier_list'),
     path('admin/suppliers/add/', views.supplier_add, name='supplier_add'),
+    path('admin/suppliers/edit/<int:id>/', views.supplier_edit, name='supplier_edit'),
+    path('admin/suppliers/delete/<int:id>/', views.supplier_delete, name='supplier_delete'),
     path('admin/shifts/', views.shift_list, name='shift_list'),
     path('admin/shifts/add/', views.shift_add, name='shift_add'),
     path('customer-history/', views.customer_history, name='customer_history'),
@@ -163,6 +168,13 @@ path('order/cancel/<int:order_id>/', views.cancel_order, name='cancel_order'),
     path('admin/shippers/delete/<int:id>/', views.admin_shipper_delete, name='admin_shipper_delete'),
     path('admin/shippers/<int:id>/toggle-availability/', views.admin_shipper_toggle_availability, name='admin_shipper_toggle_availability'),
     path('api/shippers/by-branch/', views.api_shippers_by_branch, name='api_shippers_by_branch'),
+
+    # ===== QUẢN LÝ NGƯỜI DÙNG =====
+    path('admin/users/', views.user_list, name='user_list'),
+    path('admin/users/add/', views.user_add, name='user_add'),
+    path('admin/users/edit/<int:id>/', views.user_edit, name='user_edit'),
+    path('admin/users/delete/<int:id>/', views.user_delete, name='user_delete'),
+    path('admin/users/detail/<int:id>/', views.user_detail, name='user_detail'),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

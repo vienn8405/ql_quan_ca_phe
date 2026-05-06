@@ -1,0 +1,409 @@
+{% extends 'cafe/base.html' %}
+{% load humanize %}
+
+{% block title %}Quản lý người dùng{% endblock %}
+
+{% block content %}
+<style>
+    /* Custom styles for user management */
+    .user-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .user-header h2 {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .user-header-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+    }
+
+    .btn-add-user {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-add-user:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .search-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid var(--border);
+        border-radius: 10px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .btn-search {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-search:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .users-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .users-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .users-table thead {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+
+    .users-table th {
+        padding: 16px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 13px;
+        color: #4a5568;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .users-table td {
+        padding: 16px;
+        border-bottom: 1px solid var(--border-light);
+        font-size: 14px;
+    }
+
+    .users-table tbody tr {
+        transition: all 0.2s ease;
+    }
+
+    .users-table tbody tr:hover {
+        background: #f8f9fa;
+        transform: scale(1.01);
+    }
+
+    .user-id {
+        font-weight: 600;
+        color: #667eea;
+    }
+
+    .user-name {
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .role-admin {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+
+    .role-cashier {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+
+    .role-shipper {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+    }
+
+    .role-customer {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        color: #4a5568;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .status-active {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-inactive {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 6px;
+    }
+
+    .btn-action {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        font-size: 14px;
+    }
+
+    .btn-view {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+
+    .btn-view:hover {
+        background: #1976d2;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .btn-edit {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+
+    .btn-edit:hover {
+        background: #f57c00;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .btn-delete {
+        background: #ffebee;
+        color: #c62828;
+    }
+
+    .btn-delete:hover {
+        background: #c62828;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .stats-footer {
+        padding: 16px 20px;
+        background: #f8f9fa;
+        border-top: 1px solid var(--border-light);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .stats-text {
+        font-size: 14px;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    .stats-number {
+        font-weight: 700;
+        color: #667eea;
+    }
+
+    .btn-back {
+        background: #e9ecef;
+        color: #495057;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+        margin-top: 20px;
+    }
+
+    .btn-back:hover {
+        background: #dee2e6;
+        transform: translateX(-4px);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--muted);
+    }
+
+    .empty-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+</style>
+
+<div class="user-header">
+    <h2>
+        <div class="user-header-icon">👥</div>
+        <span>Quản lý người dùng</span>
+    </h2>
+    <a href="{% url 'user_add' %}" class="btn-add-user">
+        <span>➕</span>
+        <span>Thêm người dùng</span>
+    </a>
+</div>
+
+<!-- Tìm kiếm -->
+<div class="search-card">
+    <form method="GET" style="display: grid; grid-template-columns: 1fr auto; gap: 12px;">
+        <input type="text" name="q" class="search-input"
+               placeholder="🔍 Tìm theo tên đăng nhập, vai trò, #ID..."
+               value="{{ q }}">
+        <button type="submit" class="btn-search">
+            Tìm kiếm
+        </button>
+    </form>
+</div>
+
+<!-- Danh sách người dùng -->
+<div class="users-card">
+    <table class="users-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tên đăng nhập</th>
+                <th>Vai trò</th>
+                <th>Trạng thái</th>
+                <th style="text-align: center;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td><span class="user-id">#{{ user.id }}</span></td>
+                <td><span class="user-name">{{ user.username }}</span></td>
+                <td>
+                    {% if user.role == 'admin' %}
+                        <span class="role-badge role-admin">👑 Quản trị viên</span>
+                    {% elif user.role == 'cashier' %}
+                        <span class="role-badge role-cashier">💰 Thu ngân</span>
+                    {% elif user.role == 'shipper' %}
+                        <span class="role-badge role-shipper">🚚 Giao hàng</span>
+                    {% else %}
+                        <span class="role-badge role-customer">👤 Khách hàng</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if user.role == 'shipper' %}
+                        {% if user.shipper_profile.is_available %}
+                            <span class="status-badge status-active">✅ Đang hoạt động</span>
+                        {% else %}
+                            <span class="status-badge status-inactive">⏸️ Tạm ngưng</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="status-badge status-active">✅ Hoạt động</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="action-buttons" style="justify-content: center;">
+                        <a href="{% url 'user_detail' user.id %}" class="btn-action btn-view" title="Xem chi tiết">👁️</a>
+                        <a href="{% url 'user_edit' user.id %}" class="btn-action btn-edit" title="Sửa">✏️</a>
+                        <a href="{% url 'user_delete' user.id %}" class="btn-action btn-delete" title="Xóa"
+                           onclick="return confirm('Bạn có chắc muốn xóa người dùng {{ user.username }}?')">🗑️</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">
+                    <div class="empty-state">
+                        <div class="empty-icon">👥</div>
+                        <p>
+                            {% if q %}
+                                Không tìm thấy người dùng nào với từ khóa "<strong>{{ q }}</strong>"
+                            {% else %}
+                                Chưa có người dùng nào
+                            {% endif %}
+                        </p>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Footer thống kê -->
+    <div class="stats-footer">
+        <span class="stats-text">
+            Tổng số: <span class="stats-number">{{ users.count }}</span> người dùng
+        </span>
+    </div>
+</div>
+
+<!-- Nút quay lại -->
+<a href="{% url 'admin_dashboard' %}" class="btn-back">
+    <span>←</span>
+    <span>Quay lại Dashboard</span>
+</a>
+{% endblock %}

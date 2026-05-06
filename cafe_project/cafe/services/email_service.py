@@ -363,3 +363,61 @@ def send_order_status_update_email(order, old_status=None):
             order.id, str(e),
         )
         return False
+
+
+# ==================== PASSWORD RESET ====================
+
+def send_password_reset_email(email, username, reset_url):
+    """
+    Gửi email đặt lại mật khẩu.
+
+    Args:
+        email: Email người dùng
+        username: Tên đăng nhập
+        reset_url: Link đặt lại mật khẩu
+    """
+    try:
+        subject = '🔐 Đặt lại mật khẩu — CafeManager'
+
+        context = {
+            'username': username,
+            'reset_url': reset_url,
+        }
+
+        html_content = render_to_string(
+            'cafe/emails/password_reset.html', context
+        )
+
+        # Plain text fallback
+        text_content = (
+            f'Xin chào {username},\n\n'
+            f'Bạn đã yêu cầu đặt lại mật khẩu.\n\n'
+            f'Vui lòng click vào link sau để đặt lại mật khẩu:\n'
+            f'{reset_url}\n\n'
+            f'Link này có hiệu lực trong 1 giờ.\n\n'
+            f'Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.\n\n'
+            f'Trân trọng,\n'
+            f'CafeManager Team'
+        )
+
+        email_msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+        )
+        email_msg.attach_alternative(html_content, 'text/html')
+        email_msg.send(fail_silently=False)
+
+        logger.info(
+            'Đã gửi mail đặt lại mật khẩu đến %s', email,
+        )
+        return True
+
+    except Exception as e:
+        logger.error(
+            'Lỗi gửi mail đặt lại mật khẩu đến %s: %s',
+            email, str(e),
+        )
+        return False
+

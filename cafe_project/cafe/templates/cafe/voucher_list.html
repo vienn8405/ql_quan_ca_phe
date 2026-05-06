@@ -1,15 +1,15 @@
 {% extends 'cafe/base.html' %}
 {% load currency_filters %}
-{% block title %}Quản lý Voucher{% endblock %}
-{% block page_heading %}Quản lý Voucher{% endblock %}
+{% block title %}Quản lý voucher{% endblock %}
+{% block page_heading %}Quản lý voucher{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h2 class="page-header-title">🎟️ Quản lý Voucher</h2>
+        <h2 class="page-header-title">🎟️ Quản lý voucher</h2>
         <p class="page-header-desc">Tạo và quản lý mã giảm giá cho khách hàng.</p>
     </div>
-    <a href="{% url 'voucher_add' %}" class="btn btn-primary">+ Tạo Voucher</a>
+    <a href="{% url 'voucher_add' %}" class="btn btn-primary">+ Tạo voucher</a>
 </div>
 
 {% if messages %}

@@ -7,6 +7,7 @@
     <title>{% block title %}CafeFlow{% endblock %}</title>
 
     <link rel="stylesheet" href="{% static 'cafe/style.css' %}?v={% now 'U' %}">
+    <link rel="stylesheet" href="{% static 'cafe/admin-modern.css' %}?v={% now 'U' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -19,7 +20,7 @@
                 <div class="brand-mark">☕</div>
                 <div>
                     <div class="brand-title">CafeFlow</div>
-                    <div class="brand-subtitle">smart coffee management</div>
+                    <div class="brand-subtitle">Quản lý quán cà phê thông minh</div>
                 </div>
             </div>
 
@@ -84,6 +85,9 @@
     </a>
     <a href="{% url 'employee_list' %}" class="nav-item {% if '/employees' in request.path %}active{% endif %}">
         👨‍💼 <span>Nhân viên</span>
+    </a>
+    <a href="{% url 'user_list' %}" class="nav-item {% if '/admin/users' in request.path %}active{% endif %}">
+        👥 <span>Người dùng</span>
     </a>
     <a href="{% url 'branch_list' %}" class="nav-item {% if '/branches' in request.path %}active{% endif %}">
         🗺️ <span>Chi nhánh</span>

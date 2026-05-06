@@ -47,82 +47,145 @@
 </div>
 
 {% if logs %}
-<div class="table-shell-v2 stocklog-shell">
-    <div class="table-wrap content-scroll-box scroll-box-lg">
-        <table class="stocklog-table">
-            <thead>
-                <tr>
-                    <th>Thời gian</th>
-                    <th>Chi nhánh</th>
-                    <th>Loại kho</th>
-                    <th>Hành động</th>
-                    <th>Chi tiết</th>
-                    <th>Số lượng</th>
-                    <th>Ghi chú</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in logs %}
-                <tr>
-                    <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
-                    <td>{{ log.branch.name|default:"Dùng chung" }}</td>
-                    <td>
-                        {% if log.stock_type == 'finished' %}
-                            <span class="mini-badge brown">Thành phẩm</span>
-                        {% else %}
-                            <span class="mini-badge blue">Nguyên liệu</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if log.action == 'import' %}
-                            <span class="mini-badge green">Nhập kho</span>
-                        {% elif log.action == 'export' %}
-                            <span class="mini-badge red">Xuất kho</span>
-                        {% elif log.action == 'make' %}
-                            <span class="mini-badge orange">Pha chế</span>
-                        {% elif log.action == 'order' %}
-                            <span class="mini-badge purple">Bán hàng</span>
-                        {% else %}
-                            <span class="mini-badge">{{ log.action }}</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <div class="log-object">
-                            {% if log.product %}
-                                <div><strong>Sản phẩm:</strong> {{ log.product.name }}</div>
-                            {% endif %}
-                            {% if log.material %}
-                                <div><strong>Nguyên liệu:</strong> {{ log.material.name }}</div>
-                            {% endif %}
-                            {% if not log.product and not log.material %}
-                                <span class="muted-text">-</span>
-                            {% endif %}
-                        </div>
-                    </td>
-                    <td>
-                        {% if log.quantity > 0 %}
-                            <span class="log-plus">+{{ log.quantity|floatformat:-1 }}</span>
-                        {% else %}
-                            <span class="log-minus">{{ log.quantity|floatformat:-1 }}</span>
-                        {% endif %}
+<style>
+    .date-group-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 20px;
+        margin: 20px 0 0 0;
+        border-radius: 8px 8px 0 0;
+        font-weight: 600;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
 
-                        {% if log.material %}
-                            {{ log.material.unit }}
-                        {% elif log.product %}
-                            {% if log.product.category and log.product.category.name|lower == "bánh ngọt" %}
-                                cái
+    .date-group-header:first-child {
+        margin-top: 0;
+    }
+
+    .date-group-stats {
+        margin-left: auto;
+        font-size: 13px;
+        opacity: 0.9;
+    }
+
+    .stocklog-group {
+        margin-bottom: 24px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .stocklog-group .table-shell-v2 {
+        margin: 0;
+        border: none;
+        box-shadow: none;
+    }
+
+    .stocklog-group .stocklog-table thead {
+        background: #f8f9fa;
+    }
+
+    .stocklog-group .stocklog-table thead th {
+        font-size: 12px;
+        color: #6c757d;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+</style>
+
+{% regroup logs by created_at|date:"Y-m-d" as logs_by_date %}
+
+{% for date_group in logs_by_date %}
+<div class="stocklog-group">
+    <div class="date-group-header">
+        <span>📅 {{ date_group.list.0.created_at|date:"l, d/m/Y" }}</span>
+        <span class="date-group-stats">{{ date_group.list|length }} thao tác</span>
+    </div>
+
+    <div class="table-shell-v2 stocklog-shell">
+        <div class="table-wrap content-scroll-box scroll-box-lg">
+            <table class="stocklog-table">
+                <thead>
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>Chi nhánh</th>
+                        <th>Loại kho</th>
+                        <th>Hành động</th>
+                        <th>Chi tiết</th>
+                        <th>Số lượng</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in date_group.list %}
+                    <tr>
+                        <td>{{ log.created_at|date:"H:i" }}</td>
+                        <td>{{ log.branch.name|default:"Dùng chung" }}</td>
+                        <td>
+                            {% if log.stock_type == 'finished' %}
+                                <span class="mini-badge brown">Thành phẩm</span>
                             {% else %}
-                                ly
+                                <span class="mini-badge blue">Nguyên liệu</span>
                             {% endif %}
-                        {% endif %}
-                    </td>
-                    <td>{{ log.note|default:"-" }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        </td>
+                        <td>
+                            {% if log.action == 'import' %}
+                                <span class="mini-badge green">Nhập kho</span>
+                            {% elif log.action == 'export' %}
+                                <span class="mini-badge red">Xuất kho</span>
+                            {% elif log.action == 'make' %}
+                                <span class="mini-badge orange">Pha chế</span>
+                            {% elif log.action == 'order' %}
+                                <span class="mini-badge purple">Bán hàng</span>
+                            {% else %}
+                                <span class="mini-badge">{{ log.action }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="log-object">
+                                {% if log.product %}
+                                    <div><strong>Sản phẩm:</strong> {{ log.product.name }}</div>
+                                {% endif %}
+                                {% if log.material %}
+                                    <div><strong>Nguyên liệu:</strong> {{ log.material.name }}</div>
+                                {% endif %}
+                                {% if not log.product and not log.material %}
+                                    <span class="muted-text">-</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if log.quantity > 0 %}
+                                <span class="log-plus">+{{ log.quantity|floatformat:-1 }}</span>
+                            {% else %}
+                                <span class="log-minus">{{ log.quantity|floatformat:-1 }}</span>
+                            {% endif %}
+
+                            {% if log.material %}
+                                {{ log.material.unit }}
+                            {% elif log.product %}
+                                {% if log.product.category and log.product.category.name|lower == "bánh ngọt" %}
+                                    cái
+                                {% else %}
+                                    ly
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>{{ log.note|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+{% endfor %}
+
 {% else %}
 <div class="empty-state-box">
     <div class="empty-icon">📜</div>

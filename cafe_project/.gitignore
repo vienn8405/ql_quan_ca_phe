@@ -1,24 +1,74 @@
 # Python
 __pycache__/
 *.py[cod]
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
 
 # Django
 db.sqlite3
+db.sqlite3-journal
+*.log
+local_settings.py
+
+# Media files (hình ảnh upload)
 media/
+
+# Static files collected
 staticfiles/
+static_root/
 
-# VSCode
+# IDE
 .vscode/
+.idea/
+*.swp
+*.swo
+pyrightconfig.json
 
-# Environment
+# Environment variables
 .env
 .env.*
+.env.local
 
-# Zip
+# NHƯNG cho phép .env.example
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Zip files
 *.zip
 
 # Ảnh nếu thư mục ngoài repo
 ảnh/
 
-.vscode/
-pyrightconfig.json
+# Script test và seed data (không cần trên GitHub)
+add_*.py
+seed_*.py
+fix_*.py
+cleanup_*.py
+restore_*.py
+sync_*.py
+report_*.py
+chay_script.bat
+
+# File ở thư mục cha (không upload)
+../README.md
+../requirements.txt
+../auto_download_images.py
+../check_products.py
+../backup_database.py
+../HUONG_DAN*.md
+../BAO_CAO*.md

@@ -12,9 +12,14 @@ class User(models.Model):
     )
 
     username = models.CharField(max_length=50, unique=True)
+    email = models.EmailField(max_length=255, blank=True, null=True)
     password = models.CharField(max_length=255)
     is_admin = models.BooleanField(default=False)  # giữ tương thích ngược
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='customer')
+
+    # Fields for password reset
+    reset_token = models.CharField(max_length=100, blank=True, null=True)
+    reset_token_expires = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
@@ -80,7 +85,7 @@ class ShipperProfile(models.Model):
 
 #tên món  
 class Product(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
     price = models.IntegerField()
 
      # thêm ảnh 
@@ -275,7 +280,7 @@ class RawMaterial(models.Model):
         ('item', 'Cái'),
     )
 
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
     unit = models.CharField(max_length=10, choices=UNIT_CHOICES, default='g')
     quantity = models.FloatField(default=0)
     min_quantity = models.FloatField(default=0)  # cảnh báo sắp hết

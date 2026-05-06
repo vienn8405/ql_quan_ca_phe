@@ -1,22 +1,202 @@
 {% extends 'cafe/base.html' %}
 
-{% block title %}Kho nguyên vật liệu{% endblock %}
-{% block page_heading %}Kho nguyên vật liệu{% endblock %}
+{% block title %}Kho nguyên liệu{% endblock %}
+{% block page_heading %}Kho nguyên liệu{% endblock %}
+
+{% block extra_css %}
+<style>
+    .material-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+    }
+
+    .material-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .material-panel {
+        background: #fff;
+        border: 1px solid rgba(122, 76, 47, 0.10);
+        border-radius: 24px;
+        padding: 18px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
+        margin-bottom: 16px;
+    }
+
+    .material-panel p {
+        margin: 0;
+        color: #6f5749;
+        line-height: 1.7;
+    }
+
+    .material-card {
+        border: 1px solid rgba(122, 76, 47, 0.10);
+        border-radius: 24px;
+        background: linear-gradient(180deg, #fff, #fffaf6);
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.05);
+        overflow: auto;
+        max-height: 72vh;
+    }
+
+    .material-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .material-table th,
+    .material-table td {
+        padding: 16px 14px;
+        border-bottom: 1px solid rgba(122, 76, 47, 0.08);
+        vertical-align: middle;
+    }
+
+    .material-table th {
+        background: rgba(250, 246, 242, 0.9);
+        color: #7c5c49;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        text-align: left;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    .material-table tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .material-name {
+        font-weight: 800;
+        color: #3b2416;
+    }
+
+    .unit-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: #f7f0ea;
+        color: #6f4c37;
+        font-weight: 700;
+        font-size: 13px;
+    }
+
+    .progress-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 220px;
+    }
+
+    .progress-bar {
+        width: 120px;
+        height: 10px;
+        border-radius: 999px;
+        background: #f0e4da;
+        overflow: hidden;
+        flex: 0 0 auto;
+    }
+
+    .progress-bar > span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #47b26b, #f2b94b, #ef5350);
+    }
+
+    .status-text {
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .table-action-wrap {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .table-action-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 12px;
+        background: #f6efe9;
+        color: #5c3925;
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    .table-action-link.danger {
+        background: #fff0f0;
+        color: #b83b3b;
+    }
+
+    @media (max-width: 900px) {
+        .material-card { max-height: none; }
+
+        .material-table,
+        .material-table thead,
+        .material-table tbody,
+        .material-table th,
+        .material-table td,
+        .material-table tr {
+            display: block;
+        }
+
+        .material-table thead {
+            display: none;
+        }
+
+        .material-table tr {
+            padding: 14px;
+            border-bottom: 1px solid rgba(122, 76, 47, 0.08);
+        }
+
+        .material-table td {
+            border: 0;
+            padding: 8px 0;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .material-table td::before {
+            content: attr(data-label);
+            color: #8d6d5c;
+            font-weight: 700;
+            flex: 0 0 42%;
+        }
+
+        .progress-wrap {
+            justify-content: flex-end;
+            min-width: 0;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="page-header">
+<div class="material-hero">
     <div>
-        <h2 class="page-header-title">Kho nguyên vật liệu</h2>
+        <h2 class="page-header-title">🧪 Kho nguyên liệu</h2>
         <p class="page-header-desc">Theo dõi tồn kho và cảnh báo mức thấp theo từng chi nhánh.</p>
     </div>
-    <div class="page-header-actions">
+    <div class="material-toolbar">
         <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Quay lại Dashboard</a>
         <a href="{% url 'import_materials_excel' %}{% if selected_branch %}?branch_id={{ selected_branch.id }}{% endif %}" class="btn btn-secondary">Nhập từ Excel</a>
         <a href="{% url 'material_add' %}{% if selected_branch %}?branch_id={{ selected_branch.id }}{% endif %}" class="btn btn-primary">Thêm nguyên liệu</a>
     </div>
 </div>
 
-<div class="section-box" style="margin-bottom:16px;">
+<div class="material-panel">
     <form method="get" class="admin-form-v3">
         <div class="form-grid-v3">
             <div class="form-group-v3">
@@ -38,14 +218,14 @@
     </form>
 </div>
 
-<div class="section-box" style="margin-bottom:16px;">
+<div class="material-panel">
     {% if selected_branch %}
-    <p style="margin:0;">
+    <p>
         Đang xem tồn kho nguyên liệu của chi nhánh <strong>{{ selected_branch.name }}</strong>.
-        Cảnh báo "Sắp hết" được tính theo mức tối thiểu của riêng chi nhánh này.
+        Cảnh báo <strong>Sắp hết</strong> được tính theo mức tối thiểu của riêng chi nhánh này.
     </p>
     {% else %}
-    <p style="margin:0;">
+    <p>
         Đang xem tồn kho <strong>tổng hợp toàn hệ thống</strong>.
         Số lượng là tổng từ các chi nhánh đã tách kho, hoặc dữ liệu dùng chung cũ nếu nguyên liệu chưa được phân chi nhánh.
     </p>
@@ -53,55 +233,62 @@
 </div>
 
 {% if materials %}
-<div class="table-shell-v2 content-scroll-box scroll-box-lg">
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>Nguyên liệu</th>
-                    <th>{% if selected_branch %}Số lượng chi nhánh{% else %}Số lượng tổng{% endif %}</th>
-                    <th>{% if selected_branch %}Mức tối thiểu chi nhánh{% else %}Mức tối thiểu hiển thị{% endif %}</th>
-                    <th>Đơn vị</th>
-                    <th>Trạng thái</th>
-                    <th>Hành động</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for m in materials %}
-                <tr>
-                    <td><strong>{{ m.name }}</strong></td>
-                    <td>{{ m.display_quantity|floatformat:-1 }}</td>
-                    <td>{{ m.display_min_quantity|floatformat:-1 }}</td>
-                    <td>
+<div class="material-card">
+    <table class="material-table">
+        <thead>
+            <tr>
+                <th>Nguyên liệu</th>
+                <th>{% if selected_branch %}Số lượng chi nhánh{% else %}Số lượng tổng{% endif %}</th>
+                <th>{% if selected_branch %}Mức tối thiểu chi nhánh{% else %}Mức tối thiểu hiển thị{% endif %}</th>
+                <th>Đơn vị</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in materials %}
+            <tr>
+                <td data-label="Nguyên liệu"><span class="material-name">{{ m.name }}</span></td>
+                <td data-label="Số lượng">{{ m.display_quantity|floatformat:-1 }}</td>
+                <td data-label="Mức tối thiểu">{{ m.display_min_quantity|floatformat:-1 }}</td>
+                <td data-label="Đơn vị">
+                    <span class="unit-pill">
                         {% if m.unit == 'g' %}g
                         {% elif m.unit == 'ml' %}ml
                         {% elif m.unit == 'item' %}cái
                         {% else %}{{ m.unit }}{% endif %}
-                    </td>
-                    <td>
-                        {% if m.display_quantity <= 0 %}
-                            <span class="badge badge-red">Hết hàng</span>
-                        {% elif m.display_quantity < m.display_min_quantity %}
-                            <span class="badge badge-orange">Sắp hết hàng</span>
-                        {% else %}
-                            <span class="badge badge-green">Còn hàng</span>
-                        {% endif %}
-                        <span style="display:inline-block;margin-left:8px;">{{ m.bar_percent }}%</span>
-                    </td>
-                    <td>
-                        <div class="table-action-wrap">
-                            <a href="{% url 'material_edit' m.id %}{% if selected_branch %}?branch_id={{ selected_branch.id }}{% endif %}" class="table-action-link">Sửa</a>
-                            <a href="{% url 'material_delete' m.id %}" class="table-action-link danger"
-                               onclick="return confirm('Bạn có chắc muốn xóa nguyên liệu này không?')">
-                                Xóa
-                            </a>
+                    </span>
+                </td>
+                <td data-label="Trạng thái">
+                    <div class="progress-wrap">
+                        <div class="progress-bar">
+                            <span style="width: {{ m.bar_percent|default:0 }}%;"></span>
                         </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                        <span class="status-text">
+                            {% if m.display_quantity <= 0 %}
+                                <span class="badge badge-red">Hết hàng</span>
+                            {% elif m.display_quantity < m.display_min_quantity %}
+                                <span class="badge badge-orange">Sắp hết hàng</span>
+                            {% else %}
+                                <span class="badge badge-green">Còn hàng</span>
+                            {% endif %}
+                            {{ m.bar_percent }}%
+                        </span>
+                    </div>
+                </td>
+                <td data-label="Hành động">
+                    <div class="table-action-wrap">
+                        <a href="{% url 'material_edit' m.id %}{% if selected_branch %}?branch_id={{ selected_branch.id }}{% endif %}" class="table-action-link">Sửa</a>
+                        <a href="{% url 'material_delete' m.id %}" class="table-action-link danger"
+                           onclick="return confirm('Bạn có chắc muốn xóa nguyên liệu này không?')">
+                            Xóa
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% else %}
 <div class="empty-state-box">

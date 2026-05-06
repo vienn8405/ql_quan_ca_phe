@@ -95,6 +95,153 @@ def logout_view(request):
     return redirect('home')
 
 
+def register_view(request):
+    """Đăng ký tài khoản khách hàng"""
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip()
+        password = request.POST.get('password', '').strip()
+        confirm_password = request.POST.get('confirm_password', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        full_name = request.POST.get('full_name', '').strip()
+
+        # Validation
+        if not username or not password or not email:
+            messages.error(request, '❌ Vui lòng điền đầy đủ thông tin bắt buộc')
+            return redirect('register')
+
+        if len(password) < 6:
+            messages.error(request, '❌ Mật khẩu phải có ít nhất 6 ký tự')
+            return redirect('register')
+
+        if password != confirm_password:
+            messages.error(request, '❌ Mật khẩu xác nhận không khớp')
+            return redirect('register')
+
+        # Check username exists
+        if User.objects.filter(username=username).exists():
+            messages.error(request, '❌ Tên đăng nhập đã tồn tại')
+            return redirect('register')
+
+        # Check email exists
+        if User.objects.filter(email=email).exists():
+            messages.error(request, '❌ Email đã được sử dụng')
+            return redirect('register')
+
+        # Create user
+        user = User.objects.create(
+            username=username,
+            email=email,
+            password=password,  # TODO: Should hash password
+            role='customer',
+            is_admin=False
+        )
+
+        # Create customer profile
+        from cafe.models import CustomerProfile
+        CustomerProfile.objects.create(
+            user=user,
+            phone=phone,
+            full_name=full_name,
+            loyalty_points=0
+        )
+
+        messages.success(request, '✅ Đăng ký thành công! Vui lòng đăng nhập.')
+        return redirect('login')
+
+    return render(request, 'cafe/register.html')
+
+
+def forgot_password_view(request):
+    """Quên mật khẩu - Gửi email reset"""
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+
+        if not email:
+            messages.error(request, '❌ Vui lòng nhập email')
+            return redirect('forgot_password')
+
+        # Check email exists
+        user = User.objects.filter(email=email).first()
+        if not user:
+            messages.error(request, '❌ Email không tồn tại trong hệ thống')
+            return redirect('forgot_password')
+
+        # Generate reset token
+        import secrets
+        reset_token = secrets.token_urlsafe(32)
+
+        # Save token to user (need to add field to model)
+        user.reset_token = reset_token
+        user.reset_token_expires = timezone.now() + timezone.timedelta(hours=1)
+        user.save()
+
+        # Send email
+        from cafe.services.email_service import send_password_reset_email
+        try:
+            reset_url = request.build_absolute_uri(
+                reverse('reset_password', args=[reset_token])
+            )
+            send_password_reset_email(user.email, user.username, reset_url)
+            messages.success(request, '✅ Email đặt lại mật khẩu đã được gửi! Vui lòng kiểm tra hộp thư.')
+        except Exception as e:
+            messages.error(request, f'❌ Không thể gửi email: {str(e)}')
+
+        return redirect('login')
+
+    return render(request, 'cafe/forgot_password.html')
+
+
+def reset_password_view(request, token):
+    """Reset mật khẩu với token"""
+    # Find user by token
+    user = User.objects.filter(reset_token=token).first()
+
+    if not user:
+        messages.error(request, '❌ Link đặt lại mật khẩu không hợp lệ')
+        return redirect('login')
+
+    # Check token expired
+    if user.reset_token_expires < timezone.now():
+        messages.error(request, '❌ Link đặt lại mật khẩu đã hết hạn')
+        return redirect('forgot_password')
+
+    if request.method == 'POST':
+        password = request.POST.get('password', '').strip()
+        confirm_password = request.POST.get('confirm_password', '').strip()
+
+        if len(password) < 6:
+            messages.error(request, '❌ Mật khẩu phải có ít nhất 6 ký tự')
+            return redirect('reset_password', token=token)
+
+        if password != confirm_password:
+            messages.error(request, '❌ Mật khẩu xác nhận không khớp')
+            return redirect('reset_password', token=token)
+
+        # Update password
+        user.password = password  # TODO: Should hash
+        user.reset_token = None
+        user.reset_token_expires = None
+        user.save()
+
+        messages.success(request, '✅ Đặt lại mật khẩu thành công! Vui lòng đăng nhập.')
+        return redirect('login')
+
+    return render(request, 'cafe/reset_password.html', {'token': token})
+
+
+# Decorator: Require customer login
+def customer_login_required(view_func):
+    """Decorator: yêu cầu đăng nhập cho khách hàng"""
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if 'user_id' not in request.session:
+            messages.warning(request, '⚠️ Vui lòng đăng nhập để tiếp tục')
+            return redirect('login')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
 
 #quản lí chi nhánh
 def branch_list(request):
@@ -220,10 +367,16 @@ def product_add(request):
     categories = Category.objects.all()
 
     if request.method == 'POST':
-        name = request.POST['name']
+        name = request.POST['name'].strip()
         price = request.POST['price']
         category_id = request.POST['category']
         img = request.FILES.get('image')
+
+        if Product.objects.filter(name__iexact=name).exists():
+            messages.error(request, f"❌ Sản phẩm '{name}' đã tồn tại. Hãy sửa sản phẩm cũ hoặc đổi tên.")
+            return render(request, 'cafe/product_add.html', {
+                'categories': categories,
+            })
 
         product = Product.objects.create(
             name=name,
@@ -271,7 +424,15 @@ def product_edit(request, id):
     categories = Category.objects.all()
 
     if request.method == 'POST':
-        product.name = request.POST['name']
+        new_name = request.POST['name'].strip()
+        if Product.objects.filter(name__iexact=new_name).exclude(id=product.id).exists():
+            messages.error(request, f"❌ Sản phẩm '{new_name}' đã tồn tại. Không thể đổi tên trùng.")
+            return render(request, 'cafe/product_edit.html', {
+                'product': product,
+                'categories': categories
+            })
+
+        product.name = new_name
         product.price = request.POST['price']
         product.category_id = request.POST['category']
          # nếu có upload ảnh mới thì thay ảnh
@@ -705,12 +866,35 @@ def user_home(request):
         'categories': categories
     })
 #menu
+@customer_login_required
 def user_menu(request):
-    products = Product.objects.select_related('category').all()
+    import unicodedata
+
+    def normalize_name(value):
+        text = (value or '').strip().lower()
+        text = unicodedata.normalize('NFKD', text)
+        return ''.join(ch for ch in text if not unicodedata.combining(ch))
+
+    products = Product.objects.select_related('category').all().order_by('name', 'id')
+
+    # Loại các món trùng giữa tên có dấu / không dấu, ưu tiên tên có dấu
+    deduped = {}
+    for p in products:
+        key = normalize_name(p.name)
+        current = deduped.get(key)
+        if current is None:
+            deduped[key] = p
+            continue
+
+        current_has_diacritics = normalize_name(current.name) != current.name.lower().strip()
+        new_has_diacritics = normalize_name(p.name) != p.name.lower().strip()
+
+        if new_has_diacritics and not current_has_diacritics:
+            deduped[key] = p
 
     product_data = []
 
-    for p in products:
+    for p in deduped.values():
         inventory = Inventory.objects.filter(product=p).first()
         finished_qty = inventory.quantity if inventory else 0
 
@@ -737,6 +921,7 @@ def user_menu(request):
         'product_data': product_data
     })
 #xem giỏ hàng
+@customer_login_required
 def cart(request):
     cart = request.session.get('cart', {})
 
@@ -762,6 +947,7 @@ def cart(request):
 
 
 
+@customer_login_required
 @require_POST
 def user_order_create(request):
     cart = request.session.get('cart', {})
@@ -1008,6 +1194,7 @@ def user_order_create(request):
     return redirect('user_order_detail')
 
 #thêm vào giỏ
+@customer_login_required
 def cart_add(request, product_id):
     product = get_object_or_404(Product, id=product_id)
     inventory = get_object_or_404(Inventory, product=product)
@@ -1019,12 +1206,11 @@ def cart_add(request, product_id):
     desired_qty = current_qty + 1
 
     if desired_qty > inventory.quantity:
-        missing_qty = desired_qty - inventory.quantity
-        can_make, error = can_make_product(product, missing_qty)
-
-        if not can_make:
-            messages.error(request, f"❌ {product.name}: {error}")
-            return redirect('user_menu')
+        messages.error(
+            request,
+            f"❌ {product.name}: chỉ còn {inventory.quantity} sản phẩm trong kho, không thể thêm vượt quá số lượng tồn kho."
+        )
+        return redirect('user_menu')
 
     image_url = product.image.url if product.image else ""
 
@@ -1047,6 +1233,7 @@ def cart_add(request, product_id):
     messages.success(request, f"✅ Đã thêm {product.name} vào giỏ hàng")
     return redirect('user_menu')
 #thêm hoặc giảm số lượng sản phẩm
+@customer_login_required
 def cart_update(request, product_id):
     cart = request.session.get('cart', {})
     pid = str(product_id)
@@ -1058,18 +1245,21 @@ def cart_update(request, product_id):
     inventory = get_object_or_404(Inventory, product=product)
 
     if request.method == 'POST':
-        quantity = int(request.POST.get('quantity', 1))
+        try:
+            quantity = int(request.POST.get('quantity', 1))
+        except ValueError:
+            messages.error(request, f"❌ Số lượng của {product.name} không hợp lệ")
+            return redirect('cart')
 
         if quantity < 1:
             quantity = 1
 
         if quantity > inventory.quantity:
-            missing_qty = quantity - inventory.quantity
-            can_make, error = can_make_product(product, missing_qty)
-
-            if not can_make:
-                messages.error(request, f"❌ {product.name}: {error}")
-                return redirect('cart')
+            messages.error(
+                request,
+                f"❌ {product.name}: chỉ còn {inventory.quantity} sản phẩm trong kho, không thể đặt vượt quá tồn kho."
+            )
+            return redirect('cart')
 
         cart[pid]['quantity'] = quantity
         request.session['cart'] = cart
@@ -1080,6 +1270,7 @@ def cart_update(request, product_id):
     return redirect('cart')
 
 #xóa sản phẩm khỏi giỏ
+@customer_login_required
 def cart_remove(request, product_id):
     cart = request.session.get('cart', {})
     pid = str(product_id)
@@ -1098,7 +1289,8 @@ def cart_remove(request, product_id):
 def stripe_success(request):
     """
     Stripe Checkout thành công → khách quay về.
-    is_paid sẽ được set =True bởi webhook bên server.
+    Ưu tiên xác nhận lại từ session_id để cập nhật is_paid ngay trên giao diện,
+    còn webhook vẫn giữ để đồng bộ server-side.
     """
     order_id = request.session.get('order_id')
     if order_id:
@@ -1110,6 +1302,19 @@ def stripe_success(request):
     if not order:
         messages.error(request, "❌ Không tìm thấy đơn hàng.")
         return redirect('cart')
+
+    session_id = request.GET.get('session_id')
+    if session_id and not order.is_paid:
+        try:
+            from .services.stripe_service import retrieve_checkout_session
+            session = retrieve_checkout_session(session_id)
+            if session and getattr(session, 'payment_status', '') == 'paid':
+                order.is_paid = True
+                order.stripe_checkout_session_id = session.id
+                order.save(update_fields=['is_paid', 'stripe_checkout_session_id'])
+        except Exception:
+            # Không làm hỏng luồng success nếu Stripe API tạm lỗi
+            pass
 
     messages.success(request, "✅ Thanh toán thành công! Đơn hàng của bạn đang được xử lý.")
     return redirect('user_order_detail')
@@ -1415,58 +1620,59 @@ def consume_materials_for_product(product, quantity_needed=1, branch=None):
             )
 
 def process_product_order(product, quantity, branch=None):
-    inventory, _ = Inventory.objects.select_for_update().get_or_create(
-        product=product,
-        defaults={'quantity': 0}
-    )
+    with transaction.atomic():
+        inventory, _ = Inventory.objects.select_for_update().get_or_create(
+            product=product,
+            defaults={'quantity': 0}
+        )
 
-    # Nếu đủ thành phẩm
-    if inventory.quantity >= quantity:
-        inventory.quantity -= quantity
-        inventory.save()
+        # Nếu đủ thành phẩm
+        if inventory.quantity >= quantity:
+            inventory.quantity -= quantity
+            inventory.save(update_fields=['quantity'])
+
+            StockLog.objects.create(
+                stock_type='finished',
+                action='order',
+                product=product,
+                branch=branch,
+                quantity=-quantity,
+                note='Bán từ kho thành phẩm'
+            )
+            return True, ""
+
+        # Nếu thiếu thành phẩm, thử pha từ nguyên liệu
+        missing_qty = quantity - inventory.quantity
+        can_make, error = can_make_product(product, missing_qty, branch=branch)
+        if not can_make:
+            return False, error
+
+        sold_finished = inventory.quantity
+        inventory.quantity = 0
+        inventory.save(update_fields=['quantity'])
+
+        if sold_finished > 0:
+            StockLog.objects.create(
+                stock_type='finished',
+                action='order',
+                product=product,
+                branch=branch,
+                quantity=-sold_finished,
+                note='Bán phần thành phẩm còn lại'
+            )
+
+        consume_materials_for_product(product, missing_qty, branch=branch)
 
         StockLog.objects.create(
             stock_type='finished',
-            action='order',
+            action='make',
             product=product,
             branch=branch,
-            quantity=-quantity,
-            note='Bán từ kho thành phẩm'
+            quantity=missing_qty,
+            note='Pha chế tự động từ nguyên liệu'
         )
+
         return True, ""
-
-    # Nếu thiếu thành phẩm, thử pha từ nguyên liệu
-    missing_qty = quantity - inventory.quantity
-    can_make, error = can_make_product(product, missing_qty, branch=branch)
-    if not can_make:
-        return False, error
-
-    sold_finished = inventory.quantity
-    inventory.quantity = 0
-    inventory.save()
-
-    if sold_finished > 0:
-        StockLog.objects.create(
-            stock_type='finished',
-            action='order',
-            product=product,
-            branch=branch,
-            quantity=-sold_finished,
-            note='Bán phần thành phẩm còn lại'
-        )
-
-    consume_materials_for_product(product, missing_qty, branch=branch)
-
-    StockLog.objects.create(
-        stock_type='finished',
-        action='make',
-        product=product,
-        branch=branch,
-        quantity=missing_qty,
-        note='Pha chế tự động từ nguyên liệu'
-    )
-
-    return True, ""
 
 def material_list(request):
     if 'admin_id' not in request.session:
@@ -1511,11 +1717,54 @@ def material_add(request):
 
     if request.method == 'POST':
         branch_id = request.POST.get('branch_id')
+        name = request.POST['name'].strip()
         quantity = float(request.POST['quantity'])
         min_quantity = float(request.POST.get('min_quantity', 0))
+        unit = request.POST['unit']
+
+        existing = RawMaterial.objects.filter(name__iexact=name).first()
+        if existing:
+            if branch_id:
+                branch = get_object_or_404(CafeBranch, id=branch_id)
+                stock = BranchMaterialStock.objects.filter(material=existing, branch=branch).first()
+                if stock:
+                    stock.quantity += quantity
+                    stock.min_quantity = min_quantity
+                    stock.save(update_fields=['quantity', 'min_quantity'])
+                else:
+                    BranchMaterialStock.objects.create(
+                        material=existing,
+                        branch=branch,
+                        quantity=quantity,
+                        min_quantity=min_quantity,
+                    )
+                sync_raw_material_total(existing)
+                StockLog.objects.create(
+                    stock_type='material',
+                    action='import',
+                    material=existing,
+                    branch=branch,
+                    quantity=quantity,
+                    note='Nhập thêm vào nguyên liệu đã có theo chi nhánh'
+                )
+                return redirect(f"{reverse('material_list')}?branch_id={branch_id}")
+
+            existing.quantity += quantity
+            existing.min_quantity = max(existing.min_quantity, min_quantity)
+            existing.unit = unit or existing.unit
+            existing.save(update_fields=['quantity', 'min_quantity', 'unit'])
+            StockLog.objects.create(
+                stock_type='material',
+                action='import',
+                material=existing,
+                quantity=quantity,
+                note='Nhập thêm vào nguyên liệu đã có'
+            )
+            return redirect('material_list')
+
         material = RawMaterial.objects.create(
-            name=request.POST['name'],
-            unit=request.POST['unit'],
+            name=name,
+            unit=unit,
             quantity=quantity,
             min_quantity=min_quantity
         )
@@ -1562,7 +1811,17 @@ def material_edit(request, id):
 
     if request.method == 'POST':
         try:
-            material.name = request.POST['name']
+            new_name = request.POST['name'].strip()
+            duplicate = RawMaterial.objects.filter(name__iexact=new_name).exclude(id=material.id).first()
+            if duplicate:
+                messages.error(request, f"❌ Nguyên liệu '{new_name}' đã tồn tại. Không thể đổi tên trùng.")
+                return render(request, 'cafe/material_edit.html', {
+                    'material': material,
+                    'branches': branches,
+                    'selected_branch': selected_branch,
+                })
+
+            material.name = new_name
             material.unit = request.POST['unit']
             new_quantity = float(request.POST['quantity'])
             new_min_quantity = float(request.POST.get('min_quantity', 0))
@@ -3055,6 +3314,38 @@ def supplier_add(request):
     materials = RawMaterial.objects.all()
     return render(request, 'cafe/supplier_add.html', {'materials': materials})
 
+@role_required('admin')
+def supplier_edit(request, id):
+    supplier = get_object_or_404(Supplier, id=id)
+
+    if request.method == 'POST':
+        supplier.name = request.POST.get('name')
+        supplier.contact_person = request.POST.get('contact_person', '')
+        supplier.phone = request.POST.get('phone')
+        supplier.email = request.POST.get('email', '')
+        supplier.address = request.POST.get('address', '')
+        supplier.notes = request.POST.get('notes', '')
+        supplier.save()
+
+        messages.success(request, f'✅ Đã cập nhật nhà cung cấp {supplier.name}')
+        return redirect('supplier_list')
+
+    return render(request, 'cafe/supplier_edit.html', {'supplier': supplier})
+
+@role_required('admin')
+def supplier_delete(request, id):
+    supplier = get_object_or_404(Supplier, id=id)
+
+    # Check if supplier has orders
+    if SupplierOrder.objects.filter(supplier=supplier).exists():
+        messages.error(request, f'❌ Không thể xóa nhà cung cấp {supplier.name} vì đã có đơn nhập hàng')
+        return redirect('supplier_list')
+
+    supplier_name = supplier.name
+    supplier.delete()
+    messages.success(request, f'✅ Đã xóa nhà cung cấp {supplier_name}')
+    return redirect('supplier_list')
+
 # ==================== QUẢN LÝ CA LÀM VIỆC ====================
 @role_required('admin')
 def shift_list(request):
@@ -4231,3 +4522,215 @@ def api_shippers_by_branch(request):
 
     return JsonResponse(result, safe=False)
 
+
+# ==================== QUẢN LÝ NGƯỜI DÙNG ====================
+
+@role_required('admin')
+def user_list(request):
+    """Danh sách tất cả người dùng"""
+    if 'admin_id' not in request.session:
+        return redirect('login')
+
+    q = request.GET.get('q', '').strip()
+    users = User.objects.all().order_by('-id')
+
+    if q:
+        search_filter = (
+            models.Q(username__icontains=q) |
+            models.Q(role__icontains=q)
+        )
+
+        # Tìm theo ID
+        raw_id = q.lstrip('#')
+        if raw_id.isdigit():
+            search_filter |= models.Q(id=int(raw_id))
+
+        users = users.filter(search_filter)
+
+    return render(request, 'cafe/user_list.html', {
+        'users': users,
+        'q': q,
+    })
+
+
+@role_required('admin')
+def user_add(request):
+    """Thêm người dùng mới"""
+    if 'admin_id' not in request.session:
+        return redirect('login')
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
+        role = request.POST.get('role', 'customer')
+
+        # Validation
+        if not username:
+            messages.error(request, '❌ Tên đăng nhập không được để trống')
+            return redirect('user_add')
+
+        if not password:
+            messages.error(request, '❌ Mật khẩu không được để trống')
+            return redirect('user_add')
+
+        if len(password) < 6:
+            messages.error(request, '❌ Mật khẩu phải có ít nhất 6 ký tự')
+            return redirect('user_add')
+
+        # Kiểm tra username đã tồn tại
+        if User.objects.filter(username=username).exists():
+            messages.error(request, '❌ Tên đăng nhập đã tồn tại')
+            return redirect('user_add')
+
+        # Tạo user
+        user = User.objects.create(
+            username=username,
+            password=password,  # TODO: Nên hash password
+            role=role,
+            is_admin=(role == 'admin')
+        )
+
+        # Nếu là shipper, tạo ShipperProfile
+        if role == 'shipper':
+            from cafe.models import ShipperProfile
+            ShipperProfile.objects.create(
+                user=user,
+                phone='',
+                is_available=True,
+                max_active_orders=5
+            )
+
+        messages.success(request, f'✅ Đã thêm người dùng: {username}')
+        return redirect('user_list')
+
+    return render(request, 'cafe/user_add.html', {
+        'roles': User.ROLE_CHOICES
+    })
+
+
+@role_required('admin')
+def user_edit(request, id):
+    """Sửa thông tin người dùng"""
+    if 'admin_id' not in request.session:
+        return redirect('login')
+
+    user = get_object_or_404(User, id=id)
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
+        role = request.POST.get('role', user.role)
+
+        # Validation
+        if not username:
+            messages.error(request, '❌ Tên đăng nhập không được để trống')
+            return redirect('user_edit', id=id)
+
+        # Kiểm tra username trùng (trừ chính nó)
+        if User.objects.filter(username=username).exclude(id=id).exists():
+            messages.error(request, '❌ Tên đăng nhập đã tồn tại')
+            return redirect('user_edit', id=id)
+
+        # Cập nhật
+        user.username = username
+        if password:  # Chỉ update password nếu có nhập
+            if len(password) < 6:
+                messages.error(request, '❌ Mật khẩu phải có ít nhất 6 ký tự')
+                return redirect('user_edit', id=id)
+            user.password = password  # TODO: Nên hash password
+
+        old_role = user.role
+        user.role = role
+        user.is_admin = (role == 'admin')
+        user.save()
+
+        # Nếu đổi sang shipper, tạo ShipperProfile
+        if role == 'shipper' and old_role != 'shipper':
+            from cafe.models import ShipperProfile
+            ShipperProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    'phone': '',
+                    'is_available': True,
+                    'max_active_orders': 5
+                }
+            )
+
+        messages.success(request, f'✅ Đã cập nhật người dùng: {username}')
+        return redirect('user_list')
+
+    return render(request, 'cafe/user_edit.html', {
+        'user': user,
+        'roles': User.ROLE_CHOICES
+    })
+
+
+@role_required('admin')
+def user_delete(request, id):
+    """Xóa người dùng"""
+    if 'admin_id' not in request.session:
+        return redirect('login')
+
+    user = get_object_or_404(User, id=id)
+
+    # Không cho xóa chính mình
+    if user.id == request.session.get('user_id'):
+        messages.error(request, '❌ Không thể xóa tài khoản đang đăng nhập')
+        return redirect('user_list')
+
+    # Kiểm tra user có đơn hàng không
+    if Order.objects.filter(assigned_shipper=user).exists():
+        messages.error(request, '❌ Không thể xóa người dùng đã có đơn hàng')
+        return redirect('user_list')
+
+    username = user.username
+    user.delete()
+
+    messages.success(request, f'✅ Đã xóa người dùng: {username}')
+    return redirect('user_list')
+
+
+@role_required('admin')
+def user_detail(request, id):
+    """Xem chi tiết người dùng"""
+    if 'admin_id' not in request.session:
+        return redirect('login')
+
+    user = get_object_or_404(User, id=id)
+
+    # Lấy thống kê
+    stats = {}
+
+    if user.role == 'shipper':
+        # Thống kê shipper
+        stats['total_deliveries'] = Order.objects.filter(
+            assigned_shipper=user,
+            delivery_status='delivered'
+        ).count()
+
+        stats['active_deliveries'] = Order.objects.filter(
+            assigned_shipper=user,
+            delivery_status__in=['assigned', 'accepted', 'shipping']
+        ).count()
+
+        stats['failed_deliveries'] = Order.objects.filter(
+            assigned_shipper=user,
+            delivery_status='failed'
+        ).count()
+
+        # Lấy ShipperProfile
+        try:
+            stats['profile'] = user.shipper_profile
+        except:
+            stats['profile'] = None
+
+    # Lấy audit logs
+    audit_logs = AuditLog.objects.filter(
+        actor=user.username
+    ).order_by('-created_at')[:20]
+
+    return render(request, 'cafe/user_detail.html', {
+        'user': user,
+        'stats': stats,
+        'audit_logs': audit_logs,
+    })
