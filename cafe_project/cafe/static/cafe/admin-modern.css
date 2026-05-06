@@ -1,0 +1,478 @@
+/* ===== ADMIN MODERN STYLES - Áp dụng cho tất cả trang admin ===== */
+
+/* ===== HEADER & TITLE ===== */
+.page-header-modern {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.page-title-modern {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.page-icon-modern {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.page-title-text {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+/* ===== BUTTONS ===== */
+.btn-modern {
+    padding: 12px 24px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.btn-primary-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-success-modern {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+}
+
+.btn-success-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(22, 163, 74, 0.4);
+}
+
+.btn-warning-modern {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);
+}
+
+.btn-warning-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(240, 147, 251, 0.4);
+}
+
+.btn-danger-modern {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+}
+
+.btn-danger-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+}
+
+.btn-secondary-modern {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.btn-secondary-modern:hover {
+    background: #dee2e6;
+}
+
+/* ===== SEARCH CARD ===== */
+.search-card-modern {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.search-input-modern {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.search-input-modern:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* ===== TABLE MODERN ===== */
+.table-card-modern {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.table-modern {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table-modern thead {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.table-modern th {
+    padding: 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    color: #4a5568;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table-modern td {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 14px;
+}
+
+.table-modern tbody tr {
+    transition: all 0.2s ease;
+}
+
+.table-modern tbody tr:hover {
+    background: #f8f9fa;
+    transform: scale(1.005);
+}
+
+/* ===== BADGES ===== */
+.badge-modern {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.badge-primary-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.badge-success-modern {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    color: white;
+}
+
+.badge-warning-modern {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.badge-danger-modern {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.badge-info-modern {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+}
+
+.badge-secondary-modern {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    color: #4a5568;
+}
+
+/* ===== ACTION BUTTONS ===== */
+.action-buttons-modern {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-action-modern {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.btn-view-modern {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.btn-view-modern:hover {
+    background: #1976d2;
+    color: white;
+    transform: translateY(-2px);
+}
+
+.btn-edit-modern {
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+.btn-edit-modern:hover {
+    background: #f57c00;
+    color: white;
+    transform: translateY(-2px);
+}
+
+.btn-delete-modern {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.btn-delete-modern:hover {
+    background: #c62828;
+    color: white;
+    transform: translateY(-2px);
+}
+
+/* ===== CARDS ===== */
+.card-modern {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: all 0.3s ease;
+}
+
+.card-modern:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+.card-header-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px 20px;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.card-body-modern {
+    padding: 24px;
+}
+
+/* ===== FORMS ===== */
+.form-group-modern {
+    margin-bottom: 20px;
+}
+
+.form-label-modern {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.form-input-modern {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.form-input-modern:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-select-modern {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.form-select-modern:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* ===== STATS FOOTER ===== */
+.stats-footer-modern {
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stats-text-modern {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.stats-number-modern {
+    font-weight: 700;
+    color: #667eea;
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state-modern {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+}
+
+.empty-icon-modern {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+/* ===== GRID LAYOUTS ===== */
+.grid-2-modern {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.grid-3-modern {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.grid-4-modern {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+/* ===== ALERTS ===== */
+.alert-modern {
+    padding: 16px 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.alert-success-modern {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    border-left: 4px solid #28a745;
+    color: #155724;
+}
+
+.alert-warning-modern {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border-left: 4px solid #ffc107;
+    color: #856404;
+}
+
+.alert-danger-modern {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    border-left: 4px solid #dc3545;
+    color: #721c24;
+}
+
+.alert-info-modern {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    border-left: 4px solid #17a2b8;
+    color: #0c5460;
+}
+
+/* ===== PAGINATION ===== */
+.pagination-modern {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 24px;
+}
+
+.page-link-modern {
+    padding: 8px 16px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text);
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.page-link-modern:hover {
+    border-color: #667eea;
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.page-link-modern.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: transparent;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .page-header-modern {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .grid-2-modern,
+    .grid-3-modern,
+    .grid-4-modern {
+        grid-template-columns: 1fr;
+    }
+
+    .table-modern {
+        font-size: 12px;
+    }
+
+    .table-modern th,
+    .table-modern td {
+        padding: 12px 8px;
+    }
+}

@@ -4,147 +4,298 @@
 {% block title %}Đơn hàng{% endblock %}
 {% block page_heading %}Thông tin đơn hàng{% endblock %}
 
+{% block extra_css %}
+<style>
+    .order-hero {
+        background: linear-gradient(135deg, rgba(122, 76, 47, 0.12), rgba(255, 255, 255, 0.9));
+        border: 1px solid rgba(122, 76, 47, 0.10);
+        border-radius: 24px;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: 0 18px 45px rgba(122, 76, 47, 0.08);
+    }
+
+    .order-hero-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .order-kicker {
+        text-transform: uppercase;
+        letter-spacing: .18em;
+        font-size: 12px;
+        color: #8c6a53;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .order-hero h2 {
+        margin: 0;
+        font-size: clamp(28px, 3vw, 40px);
+        color: #3b2416;
+    }
+
+    .order-hero p {
+        margin: 10px 0 0;
+        color: #6b4a39;
+        max-width: 720px;
+        line-height: 1.7;
+    }
+
+    .order-grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 18px;
+    }
+
+    .order-card {
+        grid-column: span 12;
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(122, 76, 47, 0.10);
+        border-radius: 22px;
+        padding: 18px 20px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
+    }
+
+    @media (min-width: 900px) {
+        .order-card.half { grid-column: span 6; }
+        .order-card.third { grid-column: span 4; }
+        .order-card.full { grid-column: span 12; }
+    }
+
+    .order-card-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: .12em;
+        color: #9b7b69;
+        margin-bottom: 8px;
+        font-weight: 700;
+    }
+
+    .order-card-value {
+        font-size: 19px;
+        font-weight: 800;
+        color: #3f2818;
+        word-break: break-word;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 14px;
+        background: #fff7ef;
+        border: 1px solid rgba(122, 76, 47, 0.12);
+        color: #8b5e3c;
+    }
+
+    .status-pill.green { background: #edf8ef; color: #226b35; }
+    .status-pill.red { background: #fff0f0; color: #b23c3c; }
+
+    .section-panel {
+        margin-top: 22px;
+        border-radius: 24px;
+        background: #fff;
+        border: 1px solid rgba(122, 76, 47, 0.10);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.04);
+        overflow: hidden;
+    }
+
+    .section-panel-header {
+        padding: 18px 22px;
+        border-bottom: 1px solid rgba(122, 76, 47, 0.08);
+        background: linear-gradient(180deg, rgba(250, 246, 242, 0.8), #fff);
+    }
+
+    .section-panel-header h4 {
+        margin: 0;
+        font-size: 18px;
+        color: #3d2619;
+    }
+
+    .section-panel-header p {
+        margin: 6px 0 0;
+        color: #7d6557;
+        line-height: 1.6;
+    }
+
+    .section-body {
+        padding: 18px 22px 22px;
+    }
+
+    .detail-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .detail-table th,
+    .detail-table td {
+        padding: 14px 12px;
+        border-bottom: 1px solid rgba(122, 76, 47, 0.08);
+        vertical-align: top;
+    }
+
+    .detail-table th {
+        width: 28%;
+        color: #7c5c49;
+        font-weight: 700;
+        text-align: left;
+    }
+
+    .detail-table td {
+        color: #3d2a1f;
+    }
+
+    .order-actions {
+        margin-top: 22px;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .btn-cancel {
+        border: 0;
+        background: linear-gradient(135deg, #f04e4e, #d63c3c);
+        color: #fff;
+        padding: 12px 18px;
+        border-radius: 14px;
+        font-weight: 700;
+        box-shadow: 0 10px 20px rgba(214, 60, 60, 0.2);
+        transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .btn-cancel:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 24px rgba(214, 60, 60, 0.24);
+    }
+
+    .empty-state-box {
+        text-align: center;
+        padding: 42px 24px;
+    }
+
+    .empty-icon {
+        width: 82px;
+        height: 82px;
+        border-radius: 24px;
+        margin: 0 auto 18px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, rgba(122, 76, 47, 0.16), rgba(255, 255, 255, 0.9));
+        font-size: 34px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <div>
-        <h2 class="page-header-title">📋 Theo dõi đơn hàng của bạn</h2>
-        <p class="page-header-desc">
-            Xem trạng thái hiện tại của đơn hàng sau khi bạn đặt món.
-        </p>
+<div class="order-hero">
+    <div class="order-hero-top">
+        <div>
+            <div class="order-kicker">CafeFlow • Theo dõi đơn hàng</div>
+            <h2>Thông tin đơn hàng</h2>
+            <p>Xem nhanh trạng thái xử lý, thanh toán và chi tiết món đã đặt của bạn trong một giao diện gọn, rõ và dễ theo dõi.</p>
+        </div>
+        {% if order %}
+            {% if order.status == 'pending' %}
+                <span class="status-pill">⏳ Chờ xử lý</span>
+            {% elif order.status == 'confirmed' %}
+                <span class="status-pill">📌 Đã xác nhận</span>
+            {% elif order.status == 'preparing' %}
+                <span class="status-pill">👨‍🍳 Đang pha chế</span>
+            {% elif order.status == 'ready_for_delivery' %}
+                <span class="status-pill">📦 Chờ giao</span>
+            {% elif order.status == 'delivering' %}
+                <span class="status-pill">🚚 Đang giao</span>
+            {% elif order.status == 'completed' %}
+                <span class="status-pill green">✅ Hoàn tất</span>
+            {% elif order.status == 'cancelled' %}
+                <span class="status-pill red">❌ Đã hủy</span>
+            {% else %}
+                <span class="status-pill">{{ order.get_status_display }}</span>
+            {% endif %}
+        {% endif %}
     </div>
 </div>
 
 {% if order %}
-<div class="order-detail-card">
-    <!-- ══════ HEADER + STATUS ══════ -->
-    <div class="order-summary-head">
-        <div>
-            <span class="summary-kicker">Order Tracking</span>
-            <h3>Đơn hàng #{{ order.id }}</h3>
-        </div>
-
-        <div>
-            {% if order.status == 'pending' %}
-    <span class="badge badge-orange">⏳ Chờ xử lý</span>
-{% elif order.status == 'confirmed' %}
-    <span class="badge badge-orange">📌 Đã xác nhận</span>
-{% elif order.status == 'preparing' %}
-    <span class="badge badge-orange">👨‍🍳 Đang pha chế</span>
-{% elif order.status == 'delivering' %}
-    <span class="badge badge-orange">🚚 Đang giao</span>
-{% elif order.status == 'completed' %}
-    <span class="badge badge-green">✅ Hoàn tất</span>
-{% elif order.status == 'cancelled' %}
-    <span class="badge badge-red">❌ Đã hủy</span>
-{% else %}
-    <span class="badge badge-orange">{{ order.get_status_display }}</span>
-{% endif %}
-        </div>
+<div class="order-grid">
+    <div class="order-card third">
+        <div class="order-card-label">Mã đơn</div>
+        <div class="order-card-value">#{{ order.id }}</div>
+    </div>
+    <div class="order-card third">
+        <div class="order-card-label">Thanh toán</div>
+        <div class="order-card-value">{{ order.get_payment_method_display }}</div>
+    </div>
+    <div class="order-card third">
+        <div class="order-card-label">Loại đơn</div>
+        <div class="order-card-value">{{ order.get_order_type_display }}</div>
     </div>
 
-    <!-- ══════ QR PAYMENT (nếu cần) ══════ -->
-    <div class="order-info-grid">
-        {% if order.payment_method == 'bank' and not order.is_paid and order.status != 'cancelled' %}
-        <div class="od-qr-panel">
-            {% if reservation %}
-                <h3>💳 Vui lòng Thanh toán Cọc (30%)</h3>
-                <p>Vui lòng chuyển khoản tiền cọc để giữ bàn số {{ reservation.table.number|default:"..." }}.</p>
-                
-                <img src="https://img.vietqr.io/image/970422-0909123456-compact.png?amount={{ reservation.deposit_amount }}&addInfo=Coc ban {{ reservation.id }} don {{ order.id }}&accountName=CAFE FLOW" 
-                     alt="QR Code Đặt Cọc" class="od-qr-img">
-                     
-                <div class="od-bank-info">
-                    <div class="od-bank-row"><b>Ngân hàng:</b> MB Bank</div>
-                    <div class="od-bank-row"><b>Số tài khoản:</b> <span class="accent">0909123456</span></div>
-                    <div class="od-bank-row"><b>Người thụ hưởng:</b> CAFE FLOW</div>
-                    <div class="od-bank-row"><b>Tiền cọc cần thu:</b> <strong class="price">{{ reservation.deposit_amount|vnd }}</strong></div>
-                    <div class="od-bank-row"><b>Nội dung CK:</b> <strong class="ref">Coc ban {{ reservation.id }} don {{ order.id }}</strong></div>
-                </div>
+    {% if order.payment_method == 'stripe' %}
+    <div class="order-card half">
+        <div class="order-card-label">Trạng thái thanh toán</div>
+        <div class="order-card-value">
+            {% if order.is_paid %}
+                <span class="status-pill green">✅ Đã thanh toán</span>
             {% else %}
-                <h3>💳 Hướng dẫn Thanh toán Chuyển khoản</h3>
-                <p>Vui lòng quét mã QR dưới đây hoặc chuyển giao qua thông tin thụ hưởng để hoàn tất đơn hàng.</p>
-                
-                <img src="https://img.vietqr.io/image/970422-0909123456-compact.png?amount={{ order.total_price }}&addInfo=Thanh toan don hang {{ order.id }}&accountName=CAFE FLOW" 
-                     alt="QR Code Thanh Toán" class="od-qr-img">
-                     
-                <div class="od-bank-info">
-                    <div class="od-bank-row"><b>Ngân hàng:</b> MB Bank</div>
-                    <div class="od-bank-row"><b>Số tài khoản:</b> <span class="accent">0909123456</span></div>
-                    <div class="od-bank-row"><b>Chủ tk:</b> CAFE FLOW</div>
-                    <div class="od-bank-row"><b>Số tiền:</b> <strong class="price">{{ order.total_price|vnd }}</strong></div>
-                    <div class="od-bank-row"><b>Nội dung CK:</b> <strong class="ref">Thanh toan don hang {{ order.id }}</strong></div>
-                </div>
+                <span class="status-pill">⏳ Chờ thanh toán Stripe</span>
             {% endif %}
         </div>
-        {% endif %}
-
-    <!-- ══════ ORDER INFO GRID ══════ -->
-    <div class="info-box-v2">
-        <span>Mã đơn</span>
-        <strong>#{{ order.id }}</strong>
     </div>
+    {% endif %}
 
-    <div class="info-box-v2">
-        <span>Thanh toán</span>
-        <strong>
-            {{ order.get_payment_method_display }}
-            {% if order.payment_method == 'bank' %}
-                {% if order.is_paid %}
-                    <br><span class="pay-status-ok">✅ Đã nhận tiền</span>
-                {% else %}
-                    <br><span class="pay-status-wait">⏳ Chờ thanh toán</span>
-                {% endif %}
-            {% endif %}
-        </strong>
-    </div>
-
-    <div class="info-box-v2">
-        <span>Loại đơn</span>
-        <strong>{{ order.get_order_type_display }}</strong>
-    </div>
-
-    <div class="info-box-v2">
-        <span>Chi nhánh xử lý</span>
-        <strong>
+    <div class="order-card {% if order.payment_method == 'stripe' %}half{% else %}third{% endif %}">
+        <div class="order-card-label">Chi nhánh xử lý</div>
+        <div class="order-card-value">
             {% if order.branch %}
                 {{ order.branch.name }}
             {% else %}
                 Chưa gán
             {% endif %}
-        </strong>
+        </div>
     </div>
 
-    <div class="info-box-v2">
-        <span>Trạng thái giao hàng</span>
-        <strong>{{ order.get_delivery_status_display }}</strong>
+    <div class="order-card half">
+        <div class="order-card-label">Trạng thái giao hàng</div>
+        <div class="order-card-value">{{ order.get_delivery_status_display }}</div>
     </div>
 
-    <div class="info-box-v2">
-        <span>Phí giao hàng</span>
-        <strong>{{ order.delivery_fee|vnd }}</strong>
+    <div class="order-card third">
+        <div class="order-card-label">Phí giao hàng</div>
+        <div class="order-card-value">{{ order.delivery_fee|vnd }}</div>
+    </div>
+    <div class="order-card third">
+        <div class="order-card-label">Khoảng cách giao</div>
+        <div class="order-card-value">{{ order.delivery_distance|floatformat:1 }} m</div>
+    </div>
+    <div class="order-card third">
+        <div class="order-card-label">Ngày tạo</div>
+        <div class="order-card-value">{{ order.created_at|date:"d/m/Y H:i" }}</div>
     </div>
 
-    <div class="info-box-v2">
-        <span>Khoảng cách giao</span>
-        <strong>{{ order.delivery_distance|floatformat:1 }} m</strong>
-    </div>
-
-    <div class="info-box-v2 total-highlight">
-        <span>Tổng tiền</span>
-        <strong>{{ order.total_price|vnd }}</strong>
-    </div>
-
-    <div class="info-box-v2">
-        <span>Ngày tạo</span>
-        <strong>{{ order.created_at }}</strong>
+    <div class="order-card full" style="background: linear-gradient(135deg, #3d2619, #5a3724); color: #fff;">
+        <div class="order-card-label" style="color: rgba(255,255,255,0.75);">Tổng tiền</div>
+        <div class="order-card-value" style="color: #fff; font-size: 28px;">{{ order.total_price|vnd }}</div>
     </div>
 </div>
 
-<!-- ══════ THÔNG TIN KHÁCH HÀNG ══════ -->
-<div class="od-section">
-    <h4 class="od-section-title"><span class="icon">👤</span> Thông tin khách hàng</h4>
-    <div class="table-wrap">
-        <table>
+<div class="section-panel">
+    <div class="section-panel-header">
+        <h4>👤 Thông tin khách hàng</h4>
+        <p>Các thông tin liên hệ và ghi chú đơn hàng của bạn.</p>
+    </div>
+    <div class="section-body">
+        <table class="detail-table">
             <tbody>
                 <tr>
                     <th>Tên khách hàng</th>
@@ -167,12 +318,14 @@
     </div>
 </div>
 
-<!-- ══════ DANH SÁCH MÓN ══════ -->
-    {% if items %}
-<div class="od-section">
-    <h4 class="od-section-title"><span class="icon">☕</span> Chi tiết món đã đặt</h4>
-    <div class="table-wrap">
-        <table>
+{% if items %}
+<div class="section-panel">
+    <div class="section-panel-header">
+        <h4>☕ Chi tiết món đã đặt</h4>
+        <p>Danh sách sản phẩm, số lượng và thành tiền.</p>
+    </div>
+    <div class="section-body table-wrap">
+        <table class="detail-table">
             <thead>
                 <tr>
                     <th>Sản phẩm</th>
@@ -190,8 +343,9 @@
                     <td>
                         {% widthratio item.quantity 1 item.price as subtotal %}{{ subtotal|vnd }}
                         {% if order.status == 'completed' %}
-                            <br>
-                            <a href="{% url 'submit_review' order.id item.product.id %}" class="dash-link review-link">⭐ Đánh giá món</a>
+                            <div style="margin-top: 8px;">
+                                <a href="{% url 'submit_review' order.id item.product.id %}" class="dash-link review-link">⭐ Đánh giá món</a>
+                            </div>
                         {% endif %}
                     </td>
                 </tr>
@@ -202,19 +356,16 @@
 </div>
 {% endif %}
 
-<!-- ══════ HÀNH ĐỘNG ══════ -->
-    <div class="order-action-row d-flex gap-md mt-lg">
-        <a href="{% url 'user_menu' %}" class="btn btn-secondary">📋 Quay lại menu</a>
-
-        {% if order.status == 'pending' %}
-            <form method="post" action="{% url 'cancel_order' order.id %}" class="m-0">
-                {% csrf_token %}
-                <button type="submit" class="btn-cancel" onclick="return confirm('Bạn chắc chắn muốn huỷ đơn hàng này?');">Hủy đơn</button>
-            </form>
-        {% elif order.status == 'completed' %}
-            <span class="od-complete-msg">✅ Đơn hàng đã hoàn thành</span>
-        {% endif %}
-    </div>
+<div class="order-actions">
+    <a href="{% url 'user_menu' %}" class="btn btn-secondary">📋 Quay lại menu</a>
+    {% if order.status == 'pending' %}
+        <form method="post" action="{% url 'cancel_order' order.id %}" class="m-0">
+            {% csrf_token %}
+            <button type="submit" class="btn-cancel" onclick="return confirm('Bạn chắc chắn muốn huỷ đơn hàng này?');">Hủy đơn</button>
+        </form>
+    {% elif order.status == 'completed' %}
+        <span class="status-pill green">✅ Đơn hàng đã hoàn thành</span>
+    {% endif %}
 </div>
 {% else %}
 <div class="empty-state-box">

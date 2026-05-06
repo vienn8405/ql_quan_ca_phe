@@ -1,0 +1,242 @@
+{% extends 'cafe/base.html' %}
+
+{% block title %}Sửa người dùng{% endblock %}
+
+{% block content %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .form-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    .form-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        padding: 24px;
+        text-align: center;
+    }
+
+    .form-header h2 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+    }
+
+    .form-header-subtitle {
+        margin-top: 8px;
+        font-size: 14px;
+        opacity: 0.9;
+    }
+
+    .form-body {
+        padding: 32px;
+    }
+
+    .form-group {
+        margin-bottom: 24px;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--text);
+        margin-bottom: 8px;
+    }
+
+    .form-label .required {
+        color: #e53e3e;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid var(--border);
+        border-radius: 10px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #f093fb;
+        box-shadow: 0 0 0 3px rgba(240, 147, 251, 0.1);
+    }
+
+    .form-select {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid var(--border);
+        border-radius: 10px;
+        font-size: 14px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .form-select:focus {
+        outline: none;
+        border-color: #f093fb;
+        box-shadow: 0 0 0 3px rgba(240, 147, 251, 0.1);
+    }
+
+    .form-hint {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 6px;
+    }
+
+    .alert-info {
+        background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+        border-left: 4px solid #0ea5e9;
+        padding: 16px;
+        border-radius: 8px;
+        margin-top: 12px;
+    }
+
+    .alert-info strong {
+        color: #0369a1;
+        font-size: 13px;
+    }
+
+    .alert-info ul {
+        margin: 8px 0 0 0;
+        padding-left: 20px;
+    }
+
+    .alert-info li {
+        font-size: 13px;
+        color: #0c4a6e;
+        margin-bottom: 6px;
+    }
+
+    .form-actions {
+        display: grid;
+        gap: 12px;
+        margin-top: 32px;
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border: none;
+        padding: 14px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(240, 147, 251, 0.4);
+    }
+
+    .btn-cancel {
+        background: #e9ecef;
+        color: #495057;
+        border: none;
+        padding: 14px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 15px;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-cancel:hover {
+        background: #dee2e6;
+    }
+</style>
+
+<div class="form-container">
+    <div class="form-card">
+        <div class="form-header">
+            <h2>
+                <span>✏️</span>
+                <span>Sửa người dùng</span>
+            </h2>
+            <div class="form-header-subtitle">{{ user.username }}</div>
+        </div>
+        <div class="form-body">
+            <form method="POST">
+                {% csrf_token %}
+
+                <div class="form-group">
+                    <label for="username" class="form-label">
+                        Tên đăng nhập <span class="required">*</span>
+                    </label>
+                    <input type="text" class="form-input" id="username"
+                           name="username" required
+                           value="{{ user.username }}">
+                    <div class="form-hint">Tên đăng nhập phải là duy nhất</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label">
+                        Mật khẩu mới
+                    </label>
+                    <input type="password" class="form-input" id="password"
+                           name="password" minlength="6"
+                           placeholder="Để trống nếu không đổi mật khẩu">
+                    <div class="form-hint">Chỉ nhập nếu muốn đổi mật khẩu (tối thiểu 6 ký tự)</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="role" class="form-label">
+                        Vai trò <span class="required">*</span>
+                    </label>
+                    <select class="form-select" id="role" name="role" required>
+                        {% for value, label in roles %}
+                        <option value="{{ value }}" {% if user.role == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="alert-info">
+                    <strong>ℹ️ Lưu ý:</strong>
+                    <ul>
+                        <li>Nếu đổi vai trò sang "Giao hàng", hệ thống sẽ tự động tạo hồ sơ shipper</li>
+                        <li>Để trống mật khẩu nếu không muốn thay đổi</li>
+                    </ul>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-submit">
+                        <span>✓</span>
+                        <span>Cập nhật</span>
+                    </button>
+                    <a href="{% url 'user_list' %}" class="btn-cancel">
+                        <span>✕</span>
+                        <span>Hủy</span>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

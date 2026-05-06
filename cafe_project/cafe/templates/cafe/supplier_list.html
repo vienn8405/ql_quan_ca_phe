@@ -1,13 +1,13 @@
 {% extends 'cafe/base.html' %}
-{% block title %}Quản lý Nhà Cung Cấp{% endblock %}
-{% block page_heading %}Danh Sách Nhà Cung Cấp{% endblock %}
+{% block title %}Quản lý nhà cung cấp{% endblock %}
+{% block page_heading %}Danh sách nhà cung cấp{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <p class="page-header-desc">Quản lý đối tác cung cấp nguyên vật liệu cho chuỗi quán.</p>
+        <p class="page-header-desc">Quản lý đối tác cung cấp nguyên liệu cho chuỗi quán.</p>
     </div>
-    <a href="{% url 'supplier_add' %}" class="btn btn-success">+ Thêm Nhà CC mới</a>
+    <a href="{% url 'supplier_add' %}" class="btn btn-success">+ Thêm nhà cung cấp mới</a>
 </div>
 
 <div class="widget-card">
@@ -15,11 +15,12 @@
 <table class="data-table">
     <thead>
         <tr>
-            <th>Tên Nhà CC</th>
+            <th>Tên nhà cung cấp</th>
             <th>Liên hệ</th>
             <th>SĐT / Email</th>
             <th>Trạng thái</th>
             <th>Lịch sử nhập</th>
+            <th style="text-align: center;">Thao tác</th>
         </tr>
     </thead>
     <tbody>
@@ -32,7 +33,7 @@
                 {% if s.is_active %}
                 <span class="badge badge-green">Đang hợp tác</span>
                 {% else %}
-                <span class="badge badge-red">Ngừng GD</span>
+                <span class="badge badge-red">Ngừng hợp tác</span>
                 {% endif %}
             </td>
             <td>
@@ -44,9 +45,20 @@
                     {% endfor %}
                 </ul>
             </td>
+            <td style="text-align: center;">
+                <div style="display: flex; gap: 8px; justify-content: center;">
+                    <a href="{% url 'supplier_edit' s.id %}" class="btn btn-sm btn-secondary" title="Sửa">
+                        ✏️ Sửa
+                    </a>
+                    <a href="{% url 'supplier_delete' s.id %}" class="btn btn-sm btn-danger" title="Xóa"
+                       onclick="return confirm('Bạn có chắc muốn xóa nhà cung cấp {{ s.name }}?')">
+                        🗑️ Xóa
+                    </a>
+                </div>
+            </td>
         </tr>
         {% empty %}
-        <tr><td colspan="5" class="empty-state-cell">Chưa có nhà cung cấp nào.</td></tr>
+        <tr><td colspan="6" class="empty-state-cell">Chưa có nhà cung cấp nào.</td></tr>
         {% endfor %}
     </tbody>
 </table>

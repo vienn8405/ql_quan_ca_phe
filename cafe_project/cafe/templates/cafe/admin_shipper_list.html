@@ -1,0 +1,161 @@
+{% extends 'cafe/base.html' %}
+
+{% block title %}Quản lý Shipper{% endblock %}
+{% block page_heading %}Quản lý Shipper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">👤 Quản lý Tài khoản Shipper</h2>
+        <p class="page-header-desc">Tạo, sửa, xóa và theo dõi trạng thái tài khoản giao hàng.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Quay lại Dashboard</a>
+        <a href="{% url 'admin_shipper_add' %}" class="btn btn-primary">➕ Thêm Shipper</a>
+    </div>
+</div>
+
+<!-- Filter -->
+<div class="filter-box" style="background:#fff; padding:16px; border-radius:12px; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.04); display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+    <form method="get" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <span style="font-weight:600; font-size:14px;">Lọc:</span>
+        <select name="branch_id" class="form-input" style="min-width:200px;" onchange="this.form.submit()">
+            <option value="">Tất cả chi nhánh</option>
+            {% for b in branches %}
+                <option value="{{ b.id }}" {% if selected_branch_id == b.id|stringformat:"s" %}selected{% endif %}>
+                    {{ b.name }}
+                </option>
+            {% endfor %}
+        </select>
+        <select name="availability" class="form-input" style="min-width:180px;" onchange="this.form.submit()">
+            <option value="">Tất cả trạng thái</option>
+            <option value="available" {% if availability_filter == 'available' %}selected{% endif %}>🟢 Đang nhận đơn</option>
+            <option value="busy" {% if availability_filter == 'busy' %}selected{% endif %}>🔴 Tạm ngưng</option>
+        </select>
+        {% if selected_branch_id or availability_filter %}
+            <a href="{% url 'admin_shipper_list' %}" class="btn btn-secondary">Xóa lọc</a>
+        {% endif %}
+    </form>
+</div>
+
+{% if shippers %}
+<div class="order-table-box">
+    <table class="order-table-custom">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tài khoản</th>
+                <th>Chi nhánh phụ trách</th>
+                <th>Số điện thoại</th>
+                <th>Trạng thái</th>
+                <th>Đơn đang giao</th>
+                <th>Slot nhận đơn</th>
+                <th>Ngày tạo</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in shippers %}
+            <tr>
+                <td class="col-id">#{{ s.id }}</td>
+                
+                <td>
+                    <div style="font-weight:600; font-size:14px;">{{ s.username }}</div>
+                </td>
+                
+                <td>
+                    {% if s.shipper_profile.assigned_branch %}
+                        <div>📍 <b>{{ s.shipper_profile.assigned_branch.name }}</b></div>
+                    {% else %}
+                        <span class="muted-text">Chưa gán chi nhánh</span>
+                    {% endif %}
+                </td>
+                
+                <td>
+                    {% if s.shipper_profile.phone %}
+                        📱 <a href="tel:{{ s.shipper_profile.phone }}" style="color:#2980b9; text-decoration:none;">
+                            {{ s.shipper_profile.phone }}
+                        </a>
+                    {% else %}
+                        <span class="muted-text">Chưa có SĐT</span>
+                    {% endif %}
+                </td>
+                
+                <td>
+                    {% if s.shipper_profile.is_available %}
+                        <span class="badge badge-green">🟢 Đang nhận đơn</span>
+                    {% else %}
+                        <span class="badge badge-red">🔴 Tạm ngưng</span>
+                    {% endif %}
+                </td>
+                
+                <td>
+                    <span style="font-weight:600; font-size:16px; 
+                        {% if s.active_orders > 0 %}color:#e67e22;{% elif s.active_orders == 0 %}color:#27ae60;{% endif %}">
+                        {{ s.active_orders }}
+                    </span>
+                    {% if s.active_orders > 0 %}
+                        <span style="font-size:11px; color:#e67e22;">đơn đang giao</span>
+                    {% else %}
+                        <span style="font-size:11px; color:#27ae60;">Rảnh</span>
+                    {% endif %}
+                </td>
+                
+                <td>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        {% with s.shipper_profile.max_active_orders as max %}
+                        {% with s.active_orders as active %}
+                        <div style="flex:1; background:#f0f0f0; border-radius:8px; height:8px; min-width:80px;">
+                            <div style="background:{% if active < max %}#3498db{% else %}#e74c3c{% endif %}; 
+                                height:100%; border-radius:8px; width:{% widthratio active max 100 %}%;"></div>
+                        </div>
+                        <span style="font-size:12px; color:#555; min-width:50px;">
+                            {{ active }}/{{ max }}
+                        </span>
+                        {% endwith %}
+                        {% endwith %}
+                    </div>
+                </td>
+                
+                <td class="col-date">
+                    {% if s.shipper_profile.created_at %}
+                        {{ s.shipper_profile.created_at|date:"d/m/Y" }}
+                    {% else %}
+                        {{ s.date_joined|date:"d/m/Y" }}
+                    {% endif %}
+                </td>
+                
+                <td>
+                    <div class="action-group" style="gap:6px;">
+                        <a href="{% url 'admin_shipper_edit' s.id %}" class="action-btn edit">✏️ Sửa</a>
+                        <a href="{% url 'admin_shipper_toggle_availability' s.id %}" 
+                           class="action-btn {% if s.shipper_profile.is_available %}danger{% else %}success{% endif %}"
+                           onclick="return confirm('Xác nhận thay đổi trạng thái nhận đơn của shipper {{ s.username }}?')">
+                            {% if s.shipper_profile.is_available %}⏸️ Tạm ngưng{% else %}▶️ Bật nhận đơn{% endif %}
+                        </a>
+                        <a href="{% url 'admin_shipper_delete' s.id %}" 
+                           class="action-btn danger"
+                           onclick="return confirm('⚠️ Bạn có chắc muốn xóa tài khoản shipper {{ s.username }}?\n\nLưu ý: Không thể xóa nếu còn đơn đang giao.')">
+                            🗑️ Xóa
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state-box">
+    <div class="empty-icon">👤</div>
+    <h3>Chưa có tài khoản shipper nào</h3>
+    <p>Nhấn <b>"Thêm Shipper"</b> để tạo tài khoản giao hàng đầu tiên.</p>
+    <a href="{% url 'admin_shipper_add' %}" class="btn btn-primary" style="margin-top:12px;">➕ Thêm Shipper đầu tiên</a>
+</div>
+{% endif %}
+
+<style>
+.badge-green { background:#d4edda; color:#155724; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+.badge-red { background:#f8d7da; color:#721c24; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+</style>
+{% endblock %}

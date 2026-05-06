@@ -11,6 +11,9 @@ path('menu/', views.user_menu, name='user_menu'),
 
 path('login/', views.login_view, name='login'),
 path('logout/', views.logout_view, name='logout'),
+path('register/', views.register_view, name='register'),
+path('forgot-password/', views.forgot_password_view, name='forgot_password'),
+path('reset-password/<str:token>/', views.reset_password_view, name='reset_password'),
 #admin
 #sản phẩm
 path('admin/products/', views.product_list, name='product_list'),
@@ -69,11 +72,15 @@ path('admin/recipes/delete/<int:id>/', views.recipe_delete, name='recipe_delete'
 path('admin/inventory/make/<int:product_id>/', views.inventory_make, name='inventory_make'),
 
 path('admin/orders/status/<int:order_id>/<str:status>/', views.order_update_status, name='order_update_status'),
-path('admin/orders/mark-paid/<int:order_id>/', views.order_mark_paid, name='order_mark_paid'),
 
 path('admin/stocklogs/', views.stocklog_list, name='stocklog_list'),
 
 path('order/cancel/<int:order_id>/', views.cancel_order, name='cancel_order'),
+
+    # ===== STRIPE PAYMENT =====
+    path('order/stripe-success/', views.stripe_success, name='stripe_success'),
+    path('order/stripe-cancel/', views.stripe_cancel, name='stripe_cancel'),
+    path('order/stripe-webhook/', views.stripe_webhook, name='stripe_webhook'),
 
     # ===== BÀN =====
     path('admin/tables/', views.table_list, name='table_list'),
@@ -106,6 +113,11 @@ path('order/cancel/<int:order_id>/', views.cancel_order, name='cancel_order'),
     path('admin/reservations/status/<int:id>/<str:status>/', views.admin_reservation_status, name='admin_reservation_status'),
     path('order/review/<int:order_id>/<int:product_id>/', views.submit_review, name='submit_review'),
     path('admin/reviews/', views.admin_reviews, name='admin_reviews'),
+    
+    # ===== REVIEW MỞ RỘNG =====
+    path('order/review/order/<int:order_id>/', views.submit_order_review, name='submit_order_review'),
+    path('order/review/shipper/<int:order_id>/', views.submit_shipper_review, name='submit_shipper_review'),
+    path('order/review/branch/<int:order_id>/', views.submit_branch_review, name='submit_branch_review'),
     path('api/orders-heatmap/', views.api_orders_heatmap, name='api_orders_heatmap'),
     path('api/tables/available/', views.api_available_tables, name='api_available_tables'),
     path('reservation/status/', views.reservation_status, name='reservation_status'),
@@ -115,6 +127,8 @@ path('order/cancel/<int:order_id>/', views.cancel_order, name='cancel_order'),
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('admin/suppliers/', views.supplier_list, name='supplier_list'),
     path('admin/suppliers/add/', views.supplier_add, name='supplier_add'),
+    path('admin/suppliers/edit/<int:id>/', views.supplier_edit, name='supplier_edit'),
+    path('admin/suppliers/delete/<int:id>/', views.supplier_delete, name='supplier_delete'),
     path('admin/shifts/', views.shift_list, name='shift_list'),
     path('admin/shifts/add/', views.shift_add, name='shift_add'),
     path('customer-history/', views.customer_history, name='customer_history'),
@@ -147,6 +161,20 @@ path('order/cancel/<int:order_id>/', views.cancel_order, name='cancel_order'),
     path('admin/deliveries/', views.admin_deliveries, name='admin_deliveries'),
     path('admin/deliveries/<int:order_id>/assign/', views.admin_assign_shipper, name='admin_assign_shipper'),
 
+    # ===== ADMIN QUẢN LÝ SHIPPER =====
+    path('admin/shippers/', views.admin_shipper_list, name='admin_shipper_list'),
+    path('admin/shippers/add/', views.admin_shipper_add, name='admin_shipper_add'),
+    path('admin/shippers/edit/<int:id>/', views.admin_shipper_edit, name='admin_shipper_edit'),
+    path('admin/shippers/delete/<int:id>/', views.admin_shipper_delete, name='admin_shipper_delete'),
+    path('admin/shippers/<int:id>/toggle-availability/', views.admin_shipper_toggle_availability, name='admin_shipper_toggle_availability'),
+    path('api/shippers/by-branch/', views.api_shippers_by_branch, name='api_shippers_by_branch'),
+
+    # ===== QUẢN LÝ NGƯỜI DÙNG =====
+    path('admin/users/', views.user_list, name='user_list'),
+    path('admin/users/add/', views.user_add, name='user_add'),
+    path('admin/users/edit/<int:id>/', views.user_edit, name='user_edit'),
+    path('admin/users/delete/<int:id>/', views.user_delete, name='user_delete'),
+    path('admin/users/detail/<int:id>/', views.user_detail, name='user_detail'),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

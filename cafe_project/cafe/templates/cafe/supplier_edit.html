@@ -1,0 +1,56 @@
+{% extends 'cafe/base.html' %}
+
+{% block title %}Sửa nhà cung cấp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-header-title">Sửa nhà cung cấp</h2>
+        <p class="page-header-desc">Cập nhật thông tin nhà cung cấp {{ supplier.name }}</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'supplier_list' %}" class="btn btn-secondary">← Quay lại</a>
+    </div>
+</div>
+
+<div class="form-card">
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label>Tên nhà cung cấp <span style="color:red;">*</span></label>
+            <input type="text" name="name" value="{{ supplier.name }}" required>
+        </div>
+
+        <div class="form-group">
+            <label>Người liên hệ</label>
+            <input type="text" name="contact_person" value="{{ supplier.contact_person }}">
+        </div>
+
+        <div class="form-group">
+            <label>Số điện thoại <span style="color:red;">*</span></label>
+            <input type="text" name="phone" value="{{ supplier.phone }}" required>
+        </div>
+
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="email" value="{{ supplier.email }}">
+        </div>
+
+        <div class="form-group">
+            <label>Địa chỉ</label>
+            <textarea name="address" rows="3">{{ supplier.address }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Ghi chú</label>
+            <textarea name="notes" rows="3">{{ supplier.notes }}</textarea>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">✓ Cập nhật</button>
+            <a href="{% url 'supplier_list' %}" class="btn btn-secondary">Hủy</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

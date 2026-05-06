@@ -111,11 +111,6 @@
     </div>
     {% endif %}
 
-    {% if order.payment_method == 'bank' and not order.is_paid and order.status != 'cancelled' %}
-    <div class="action-bar action-bar-sep">
-        <a href="{% url 'order_mark_paid' order.id %}" class="btn btn-success" onclick="return confirm('Xác nhận đã nhận chuyển khoản từ khách hàng này?');">Duyệt đã nhận tiền</a>
-    </div>
-    {% endif %}
 </div>
 
 <div class="section-box">
@@ -157,17 +152,20 @@
         {% endif %}
         <div class="detail-box">
             <label>Hình thức thanh toán</label>
+            <strong>{{ order.get_payment_method_display }}</strong>
+        </div>
+        {% if order.payment_method == 'stripe' %}
+        <div class="detail-box">
+            <label>Trạng thái Stripe</label>
             <strong>
-                {{ order.get_payment_method_display }}
-                {% if order.payment_method == 'bank' %}
-                    {% if order.is_paid %}
-                        <br><span class="text-success text-xs">Đã nhận tiền</span>
-                    {% else %}
-                        <br><span class="text-danger text-xs">Chờ khách chuyển khoản</span>
-                    {% endif %}
+                {% if order.is_paid %}
+                    <span style="color: green;">✅ Đã thanh toán</span>
+                {% else %}
+                    <span style="color: #f59e0b;">⏳ Chờ thanh toán</span>
                 {% endif %}
             </strong>
         </div>
+        {% endif %}
         <div class="detail-box">
             <label>Phí giao hàng</label>
             <strong>{{ order.delivery_fee|vnd }}</strong>
@@ -226,5 +224,106 @@
     <p class="text-muted">Không có món nào.</p>
     {% endif %}
 </div>
+
+{% if reviews %}
+<div class="section-box">
+    <h4>📝 Đánh giá từ khách hàng</h4>
+    <div class="reviews-grid">
+        {% for review in reviews %}
+        <div class="review-card">
+            <div class="review-header">
+                <strong>{{ review.customer_name|default:"Khách" }}</strong>
+                <span class="text-muted">{{ review.created_at|date:"d/m/Y H:i" }}</span>
+            </div>
+            <div class="review-stars">
+                {% for i in "12345" %}
+                    {% if forloop.counter <= review.rating %}⭐{% else %}☆{% endif %}
+                {% endfor %}
+            </div>
+            {% if review.comment %}
+            <p class="review-comment">{{ review.comment }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ===== ĐÁNH GIÁ MỞ RỘNG (OrderReview, ShipperReview, BranchReview) ===== -->
+{% if order.status == 'completed' %}
+<div class="section-box">
+    <h4>🌟 Đánh giá tổng thể (Mở rộng)</h4>
+    {% if order_review or shipper_review or branch_review %}
+    <div class="detail-grid">
+        {% if order_review %}
+        <div class="detail-box">
+            <label>📋 Đánh giá đơn hàng</label>
+            <div class="review-stars">
+                {% for i in "12345" %}{% if forloop.counter <= order_review.rating %}⭐{% else %}☆{% endif %}{% endfor %}
+            </div>
+            <small>{{ order_review.created_at|date:"d/m/Y H:i" }}</small>
+            {% if order_review.comment %}
+            <p class="mt-sm"><em>"{{ order_review.comment }}"</em></p>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% if shipper_review %}
+        <div class="detail-box">
+            <label>🚚 Đánh giá shipper {{ shipper_review.shipper.username }}</label>
+            <div class="review-stars">
+                {% for i in "12345" %}{% if forloop.counter <= shipper_review.rating %}⭐{% else %}☆{% endif %}{% endfor %}
+            </div>
+            <small>{{ shipper_review.created_at|date:"d/m/Y H:i" }}</small>
+            {% if shipper_review.comment %}
+            <p class="mt-sm"><em>"{{ shipper_review.comment }}"</em></p>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% if branch_review %}
+        <div class="detail-box">
+            <label>🏬 Đánh giá chi nhánh {{ branch_review.branch.name }}</label>
+            <div class="review-stars">
+                {% for i in "12345" %}{% if forloop.counter <= branch_review.rating %}⭐{% else %}☆{% endif %}{% endfor %}
+            </div>
+            <small>{{ branch_review.created_at|date:"d/m/Y H:i" }}</small>
+            {% if branch_review.comment %}
+            <p class="mt-sm"><em>"{{ branch_review.comment }}"</em></p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <p class="text-muted">Chưa có đánh giá mở rộng.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if audit_logs %}
+<div class="section-box">
+    <h4>Lịch sử thao tác (Audit Log)</h4>
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th>Thời gian</th>
+                <th>Actor</th>
+                <th>Vai trò</th>
+                <th>Hành động</th>
+                <th>Chi tiết</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in audit_logs %}
+            <tr>
+                <td><small>{{ log.created_at|date:"d/m/Y H:i:s" }}</small></td>
+                <td><strong>{{ log.actor }}</strong></td>
+                <td><span class="badge badge-secondary">{{ log.role }}</span></td>
+                <td><code>{{ log.action }}</code></td>
+                <td><small>{{ log.details }}</small></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
 
 {% endblock %}

@@ -12,9 +12,14 @@ class User(models.Model):
     )
 
     username = models.CharField(max_length=50, unique=True)
+    email = models.EmailField(max_length=255, blank=True, null=True)
     password = models.CharField(max_length=255)
     is_admin = models.BooleanField(default=False)  # giữ tương thích ngược
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='customer')
+
+    # Fields for password reset
+    reset_token = models.CharField(max_length=100, blank=True, null=True)
+    reset_token_expires = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
@@ -26,9 +31,61 @@ class Category(models.Model):
     def __str__(self):
         return self.name
 
+
+# ==================== SHIPPER PROFILE ====================
+
+class ShipperProfile(models.Model):
+    """
+    Profile mở rộng cho tài khoản shipper.
+    Mỗi User với role='shipper' có một ShipperProfile tương ứng.
+    """
+    user = models.OneToOneField(
+        'User',
+        on_delete=models.CASCADE,
+        related_name='shipper_profile'
+    )
+    phone = models.CharField(max_length=20, blank=True, verbose_name='Số điện thoại')
+    
+    # Chi nhánh shipper phụ trách
+    assigned_branch = models.ForeignKey(
+        'CafeBranch',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='shippers'
+    )
+    
+    # Trạng thái khả dụng
+    is_available = models.BooleanField(default=True, verbose_name='Đang hoạt động')
+    
+    # Số đơn tối đa có thể nhận cùng lúc
+    max_active_orders = models.IntegerField(default=5, verbose_name='Số đơn tối đa cùng lúc')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Shipper'
+        verbose_name_plural = 'Shipper Profiles'
+    
+    def __str__(self):
+        return f"{self.user.username} ({self.assigned_branch.name if self.assigned_branch else 'Chưa gán chi nhánh'})"
+    
+    def get_active_orders_count(self):
+        """Đếm số đơn đang hoạt động của shipper"""
+        from .models import Order
+        return Order.objects.filter(
+            assigned_shipper=self.user,
+            delivery_status__in=['assigned', 'accepted', 'shipping']
+        ).count()
+    
+    def can_accept_more_orders(self):
+        """Kiểm tra shipper còn slot nhận đơn"""
+        return self.get_active_orders_count() < self.max_active_orders
+
 #tên món  
 class Product(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
     price = models.IntegerField()
 
      # thêm ảnh 
@@ -49,13 +106,14 @@ class Product(models.Model):
 class Order(models.Model):
     PAYMENT_CHOICES = (
         ("cash", "Tiền mặt"),
-        ("bank", "Chuyển khoản"),
+        ("stripe", "Stripe"),
     )
 
     STATUS_CHOICES = (
         ("pending", "Chờ xử lý"),
         ("confirmed", "Đã xác nhận"),
         ("preparing", "Đang pha chế"),
+        ("ready_for_delivery", "Chờ lấy hàng"),
         ("delivering", "Đang giao"),
         ("completed", "Hoàn tất"),
         ("cancelled", "Đã hủy"),
@@ -94,6 +152,12 @@ class Order(models.Model):
         default="cash",
     )
     is_paid = models.BooleanField(default=False, verbose_name="Đã thanh toán")
+    stripe_checkout_session_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="Stripe Checkout Session ID"
+    )
 
     status = models.CharField(
         max_length=20,
@@ -216,7 +280,7 @@ class RawMaterial(models.Model):
         ('item', 'Cái'),
     )
 
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
     unit = models.CharField(max_length=10, choices=UNIT_CHOICES, default='g')
     quantity = models.FloatField(default=0)
     min_quantity = models.FloatField(default=0)  # cảnh báo sắp hết
@@ -431,7 +495,7 @@ class Reservation(models.Model):
     def __str__(self):
         return f"Đặt bàn: {self.customer_name} - {self.date} {self.time}"
 
-# 3. Đánh giá (Review) cho Đơn hàng
+# 3. Đánh giá (Review) cho Đơn hàng - REVIEW MÓN
 class Review(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews', null=True, blank=True)
     order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviews')
@@ -443,6 +507,44 @@ class Review(models.Model):
     
     def __str__(self):
         return f"Review cho Đơn #{self.order.id} - {self.rating} sao"
+
+
+# ==================== REVIEW MỞ RỘNG ====================
+# 3.1. Review Đơn Hàng - Customer đánh giá tổng thể đơn hàng
+class OrderReview(models.Model):
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='order_review')
+    rating = models.IntegerField(default=5)  # 1-5 sao
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Review Đơn #{self.order.id} - {self.rating} sao"
+
+
+# 3.2. Review Shipper - Customer đánh giá shipper giao hàng
+class ShipperReview(models.Model):
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='shipper_review')
+    shipper = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='shipper_reviews')
+    rating = models.IntegerField(default=5)  # 1-5 sao
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        shipper_name = self.shipper.username if self.shipper else 'N/A'
+        return f"Review Shipper {shipper_name} - {self.rating} sao"
+
+
+# 3.3. Review Chi Nhánh - Customer đánh giá chi nhánh xử lý đơn
+class BranchReview(models.Model):
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='branch_review')
+    branch = models.ForeignKey(CafeBranch, on_delete=models.SET_NULL, null=True, related_name='branch_reviews')
+    rating = models.IntegerField(default=5)  # 1-5 sao
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        branch_name = self.branch.name if self.branch else 'N/A'
+        return f"Review Chi Nhánh {branch_name} - {self.rating} sao"
 
 # Nhà cung cấp
 class Supplier(models.Model):
@@ -500,3 +602,24 @@ class ShiftAssignment(models.Model):
 
     class Meta:
         unique_together = ['shift', 'employee']
+
+
+# ==================== AUDIT LOG ====================
+
+class AuditLog(models.Model):
+    """Lịch sử thao tác quan trọng trên hệ thống."""
+    action = models.CharField(max_length=50)  # ORDER_STATUS_CHANGED, SHIPPER_ASSIGNED, ...
+    order = models.ForeignKey(
+        'Order', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='audit_logs'
+    )
+    actor = models.CharField(max_length=100)    # username người thực hiện
+    role = models.CharField(max_length=50)     # admin, shipper, system, customer
+    details = models.TextField(blank=True)      # ghi chú chi tiết
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f"[{self.action}] {self.actor} ({self.role}) - {self.created_at:%H:%M %d/%m/%Y}"

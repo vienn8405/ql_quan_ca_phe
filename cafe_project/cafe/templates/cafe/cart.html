@@ -63,7 +63,7 @@
     <div class="cart-right">
         <div class="summary-card-v2">
             <div class="summary-top">
-                <span class="summary-kicker">Order Summary</span>
+                <span class="summary-kicker">Tóm tắt đơn hàng</span>
                 <h3>Tóm tắt đơn hàng</h3>
             </div>
 
@@ -173,25 +173,15 @@
 
     <label class="payment-label">Chọn hình thức thanh toán</label>
 
-    {% if reservation %}
-    <label class="payment-option">
-        <input type="radio" name="payment_method" value="bank" checked>
-        <span>💳 Chuyển khoản (Bắt buộc để Đặt cọc)</span>
-    </label>
-    <div class="cart-bank-hint">
-        Vui lòng thanh toán qua quét mã QR ở màn hình tiếp theo để hoàn tất giữ chỗ.
-    </div>
-    {% else %}
     <label class="payment-option">
         <input type="radio" name="payment_method" value="cash" checked>
         <span>💵 Tiền mặt</span>
     </label>
 
     <label class="payment-option">
-        <input type="radio" name="payment_method" value="bank">
-        <span>💳 Chuyển khoản</span>
+        <input type="radio" name="payment_method" value="stripe">
+        <span>💳 Stripe (Thẻ quốc tế)</span>
     </label>
-    {% endif %}
 
     <!-- VOUCHER SECTION -->
     <div class="cart-voucher-box">

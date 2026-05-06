@@ -5,34 +5,34 @@
 {% block page_heading %}Quản lý sản phẩm{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h2 class="page-header-title">Danh sách sản phẩm</h2>
-        <p class="page-header-desc">Quản lý các món đang bán trong quán cà phê.</p>
+<!-- Header Modern -->
+<div class="page-header-modern">
+    <div class="page-title-modern">
+        <div class="page-icon-modern">📦</div>
+        <h2 class="page-title-text">Quản lý sản phẩm</h2>
     </div>
-    <div class="page-header-actions">
-        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Quay lại Dashboard</a>
-        <a href="{% url 'product_add' %}" class="btn btn-primary">Thêm sản phẩm</a>
+    <div style="display: flex; gap: 12px;">
+        <a href="{% url 'admin_dashboard' %}" class="btn-modern btn-secondary-modern">
+            ← Quay lại
+        </a>
+        <a href="{% url 'product_add' %}" class="btn-modern btn-primary-modern">
+            ➕ Thêm sản phẩm
+        </a>
     </div>
 </div>
 
-<form method="get" class="filter-panel" style="margin-bottom:16px;">
-    <div class="filter-row">
-        <div class="filter-group" style="min-width:320px; flex:1;">
-            <label>Tìm kiếm sản phẩm</label>
-            <input
-                type="text"
-                name="q"
-                value="{{ q }}"
-                placeholder="Tên sản phẩm, mã/id, danh mục hoặc giá..."
-            >
-        </div>
-        <button type="submit" class="btn-filter">Tìm kiếm</button>
-        <a href="{% url 'product_list' %}" class="btn-reset">Xóa tìm kiếm</a>
-    </div>
-</form>
+<!-- Search Modern -->
+<div class="search-card-modern">
+    <form method="get" style="display: grid; grid-template-columns: 1fr auto auto; gap: 12px;">
+        <input type="text" name="q" value="{{ q }}" class="search-input-modern"
+               placeholder="🔍 Tìm theo tên, ID, danh mục, giá...">
+        <button type="submit" class="btn-modern btn-primary-modern">Tìm kiếm</button>
+        <a href="{% url 'product_list' %}" class="btn-modern btn-secondary-modern">Xóa</a>
+    </form>
+</div>
 
 {% if products %}
+<!-- Product Grid -->
 <div class="admin-card-grid-scroll">
     <div class="admin-card-grid">
         {% for p in products %}
@@ -47,16 +47,24 @@
 
             <div class="admin-product-body">
                 <h3>{{ p.name }}</h3>
-                <p><strong>ID:</strong> #{{ p.id }}</p>
-                <p><strong>Giá:</strong> {{ p.price|vnd }}</p>
-                <p><strong>Danh mục:</strong> {{ p.category.name|default:"Chưa phân loại" }}</p>
+                <p><strong>ID:</strong> <span style="color: #667eea;">#{{ p.id }}</span></p>
+                <p><strong>Giá:</strong> <span style="color: #16a34a; font-weight: 600;">{{ p.price|vnd }}</span></p>
+                <p><strong>Danh mục:</strong>
+                    <span class="badge-modern badge-info-modern">
+                        {{ p.category.name|default:"Chưa phân loại" }}
+                    </span>
+                </p>
 
-                <div class="admin-card-actions">
-                    <a href="{% url 'product_edit' p.id %}" class="btn btn-secondary">Sửa</a>
-                    <a href="{% url 'recipe_manage' p.id %}" class="btn btn-secondary">Công thức</a>
-                    <a href="{% url 'product_delete' p.id %}" class="btn btn-secondary"
-                       onclick="return confirm('Bạn có chắc muốn xóa sản phẩm này không?')">
-                        Xóa
+                <div class="admin-card-actions" style="display: flex; gap: 8px; margin-top: 12px;">
+                    <a href="{% url 'product_edit' p.id %}" class="btn-modern btn-warning-modern" style="flex: 1; justify-content: center;">
+                        ✏️ Sửa
+                    </a>
+                    <a href="{% url 'recipe_manage' p.id %}" class="btn-modern btn-success-modern" style="flex: 1; justify-content: center;">
+                        📝 Công thức
+                    </a>
+                    <a href="{% url 'product_delete' p.id %}" class="btn-modern btn-danger-modern" style="flex: 1; justify-content: center;"
+                       onclick="return confirm('Bạn có chắc muốn xóa {{ p.name }}?')">
+                        🗑️ Xóa
                     </a>
                 </div>
             </div>
@@ -64,9 +72,17 @@
         {% endfor %}
     </div>
 </div>
+
+<!-- Stats Footer -->
+<div class="stats-footer-modern" style="margin-top: 20px;">
+    <span class="stats-text-modern">
+        Tổng số: <span class="stats-number-modern">{{ products.count }}</span> sản phẩm
+    </span>
+</div>
 {% else %}
-<div class="empty-state-box">
-    <div class="empty-icon">📦</div>
+<!-- Empty State Modern -->
+<div class="empty-state-modern">
+    <div class="empty-icon-modern">📦</div>
     <h3>{% if q %}Không tìm thấy sản phẩm phù hợp{% else %}Chưa có sản phẩm{% endif %}</h3>
     <p>
         {% if q %}

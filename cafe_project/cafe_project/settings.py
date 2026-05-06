@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # --- GeoDjango: GDAL/GEOS DLL paths (Windows) ---
 GDAL_LIBRARY_PATH = r"C:\Users\admin\AppData\Local\Programs\OSGeo4W\bin\gdal312.dll"
@@ -22,6 +23,7 @@ os.environ["GEOS_LIBRARY_PATH"] = GEOS_LIBRARY_PATH
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
@@ -136,11 +138,17 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 
 # ==================== EMAIL (MAILTRAP) ====================
+# Email Configuration (Mailtrap)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.getenv('MAILTRAP_HOST', 'sandbox.smtp.mailtrap.io')
-EMAIL_PORT = int(os.getenv('MAILTRAP_PORT', '2525'))
-EMAIL_HOST_USER = os.getenv('MAILTRAP_USERNAME', '')
-EMAIL_HOST_PASSWORD = os.getenv('MAILTRAP_PASSWORD', '')
+EMAIL_HOST = 'sandbox.smtp.mailtrap.io'
+EMAIL_PORT = 2525
 EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'CafeManager <noreply@cafemanager.vn>')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')  # Đặt trong .env
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # Đặt trong .env
+DEFAULT_FROM_EMAIL = 'noreply@cafemanager.com'
+
+# ==================== STRIPE ====================
+# Đặt các key này trong file .env, KHÔNG hardcode ở đây!
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY', '')
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY', '')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')

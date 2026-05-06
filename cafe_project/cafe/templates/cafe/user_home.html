@@ -19,6 +19,30 @@ và dễ dàng tìm chi nhánh gần bạn nhất trên bản đồ.
             <a href="{% url 'map' %}" class="btn btn-secondary">🗺️ Xem bản đồ</a>
         </div>
 
+        <!-- Auth buttons -->
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e8e5e1;">
+            {% if request.session.user_id %}
+                <p style="color: #27ae60; font-weight: 600; margin-bottom: 12px;">
+                    ✅ Xin chào, {{ request.session.user_name }}!
+                </p>
+                <a href="{% url 'logout' %}" class="btn btn-secondary" style="display: inline-block;">
+                    🚪 Đăng xuất
+                </a>
+            {% else %}
+                <p style="color: #888; margin-bottom: 12px;">
+                    Bạn chưa đăng nhập. Đăng nhập để đặt hàng và nhận ưu đãi!
+                </p>
+                <div style="display: flex; gap: 12px;">
+                    <a href="{% url 'login' %}" class="btn btn-primary" style="flex: 1;">
+                        🔐 Đăng nhập
+                    </a>
+                    <a href="{% url 'register' %}" class="btn btn-success" style="flex: 1;">
+                        ✨ Đăng ký ngay
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
         <div class="hero-mini-stats">
             <div class="mini-stat">
                 <span class="mini-stat-label">Trải nghiệm</span>
