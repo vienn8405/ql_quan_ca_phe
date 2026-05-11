@@ -1,0 +1,39 @@
+# Requirements for Cafe Management System
+# Django 6.0.1 + GeoDjango + PostGIS
+
+# Core Django
+Django==6.0.1
+asgiref==3.11.1
+
+# Database
+psycopg2-binary==2.9.12
+
+# Environment variables
+python-dotenv==1.2.2
+
+# Image processing
+Pillow==12.2.0
+
+# Excel file handling
+openpyxl==3.1.5
+et-xmlfile==2.0.0
+
+# PDF generation
+reportlab==4.5.0
+
+# HTTP requests
+requests==2.33.1
+urllib3==2.6.3
+certifi==2026.4.22
+charset-normalizer==3.4.7
+
+# Utilities
+sqlparse==0.5.5
+tzdata==2026.2
+
+# CORS headers (if needed for API)
+# django-cors-headers==4.3.1
+
+# Note: GeoDjango requires GDAL and GEOS libraries
+# These must be installed separately via OSGeo4W on Windows
+# See HUONG_DAN_CAI_DAT_TU_DAU.md for installation instructions
